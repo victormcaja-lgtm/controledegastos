@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.vercel/
+.railway/
+
+# Ambiente — NUNCA versione segredos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+apps/api/prisma/*.db
+
+# Prisma Client gerado (recriado por `prisma generate` no install/build)
+apps/api/src/generated/

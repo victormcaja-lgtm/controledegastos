@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Typecheck, testes e build
+    runs-on: ubuntu-latest
+
+    services:
+      # Postgres real: os testes de integração sobem a API inteira contra ele.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grana_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/grana_test?schema=public
+      JWT_ACCESS_SECRET: chave-de-ci-com-mais-de-32-caracteres-para-passar-na-validacao
+      JWT_REFRESH_SECRET: outra-chave-de-ci-com-mais-de-32-caracteres-bem-diferente
+      ADMIN_EMAIL: admin@grana.app
+      ADMIN_PASSWORD: SenhaDeTeste123
+      SEED_DEMO_DATA: 'true'
+      CORS_ORIGINS: http://localhost:5173
+      VITE_API_URL: http://localhost:3333
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Compilar o pacote compartilhado
+        run: npm run build:shared
+
+      - name: Preparar o banco de teste
+        run: npm run db:deploy && npm run db:seed
+
+      - name: Verificação de tipos
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build:api && npm run build:web

@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/**
+ * Design tokens do Grana.
+ *
+ * As cores vêm do protótipo: uma paleta quente, de papel, com um verde discreto
+ * para "coisa boa" e o preto-tinta para hierarquia. Declarar tudo aqui via
+ * @theme faz o Tailwind gerar as utilitárias (bg-card, text-muted, etc.) e
+ * garante que ninguém precise escrever um hex solto no meio de um componente.
+ */
+@theme {
+  --color-cream: #efebe1;
+  --color-surface: #f6f3ec;
+  --color-card: #fffdf7;
+  --color-ink: #14130f;
+  --color-ink-soft: #2e2c25;
+  --color-soft: #4a463d;
+  --color-muted: #8a8474;
+  --color-faint: #b6b0a2;
+  --color-line: #e5dfd1;
+  --color-line-soft: #f0ece1;
+  --color-chip: #eae5da;
+  --color-chip-strong: #e0dacb;
+  --color-stone: #b9b2a1;
+  --color-pebble: #c9c2b0;
+  --color-green: #5b7a6b;
+  --color-mint: #8fae9c;
+  --color-clay: #c0704f;
+
+  --font-display: 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --radius-card: 22px;
+  --radius-phone: 32px;
+  --radius-chip: 14px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foco visível sempre — acessibilidade não é opcional. */
+  :focus-visible {
+    outline: 2px solid var(--color-green);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Respeita quem pediu menos movimento no sistema. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Esconde a barra de rolagem interna do "celular" sem perder o scroll. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -1,0 +1,274 @@
+// Grana — modelo de dados
+//
+// Regras que valem para o schema inteiro:
+//  • Todo valor monetário é INTEIRO em CENTAVOS (nada de Float/Decimal na aplicação).
+//  • Todo dado financeiro pertence a um usuário (isolamento por `userId`) e é
+//    apagado em cascata quando o usuário é removido.
+//  • `referenceMonth` é sempre o dia 1 do mês em UTC — é a competência.
+
+generator client {
+  // Gerador moderno do Prisma (padrão a partir do Prisma 7): emite TypeScript
+  // no seu próprio projeto em vez de mutar node_modules.
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  engineType   = "client"
+  moduleFormat = "esm"
+
+  // queryCompiler: o planejamento das queries passa a ser feito por um módulo
+  // WebAssembly, no lugar do binário Rust (query engine). Resultado: imagem
+  // menor, cold start mais rápido e nenhum download de binário no deploy.
+  // Ele exige um driver adapter — veja `src/shared/infra/database/prisma.ts`.
+  previewFeatures = ["queryCompiler", "driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum CategoryKind {
+  EXPENSE
+  INCOME
+}
+
+enum EntryType {
+  EXPENSE
+  INCOME
+}
+
+model User {
+  id                 String     @id @default(uuid())
+  name               String     @db.VarChar(80)
+  email              String     @unique @db.VarChar(160)
+  passwordHash       String
+  role               UserRole   @default(USER)
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true)
+
+  // Proteção contra força bruta em nível de conta (complementa o rate limit por IP).
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  categories    Category[]
+  transactions  Transaction[]
+  bills         Bill[]
+  billPayments  BillPayment[]
+  incomes       Income[]
+  debts         Debt[]
+  goals         Goal[]
+  settings      UserSettings?
+  auditLogs     AuditLog[]     @relation("AuditActor")
+
+  @@index([status])
+  @@map("users")
+}
+
+/// Refresh tokens são guardados como HASH (SHA-256). Se o banco vazar,
+/// nenhum token continua utilizável. Rotação: cada uso invalida o anterior.
+model RefreshToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  /// Preenchido quando o token é rotacionado: aponta para o token que o substituiu.
+  replacedBy String?
+  userAgent  String?   @db.VarChar(255)
+  ip         String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Trilha de auditoria das ações administrativas e de autenticação.
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   @db.VarChar(64)
+  targetType String   @db.VarChar(40)
+  targetId   String?
+  actorId    String?
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String?  @db.VarChar(160)
+  ip         String?  @db.VarChar(64)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+model UserSettings {
+  userId              String  @id
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overspendAlerts     Boolean @default(true)
+  weeklySummary       Boolean @default(true)
+  roundCents          Boolean @default(false)
+  autoDarkMode        Boolean @default(false)
+  showDailyAllowance  Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+model Category {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String       @db.VarChar(60)
+  color      String       @db.VarChar(64)
+  kind       CategoryKind @default(EXPENSE)
+  /// Categorias criadas no onboarding. Não podem ser apagadas, só arquivadas.
+  isSystem   Boolean      @default(false)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  bills        Bill[]
+
+  @@unique([userId, name, kind])
+  @@index([userId, kind])
+  @@map("categories")
+}
+
+model Transaction {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  type        EntryType
+  amountCents Int
+  occurredOn  DateTime  @db.Date
+  note        String?   @db.VarChar(140)
+  /// Preenchido quando o lançamento nasceu da baixa de uma conta fixa.
+  billId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, occurredOn])
+  @@index([userId, categoryId])
+  @@map("transactions")
+}
+
+model Bill {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name        String   @db.VarChar(60)
+  amountCents Int
+  dueDay      Int
+  active      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments BillPayment[]
+
+  @@index([userId, active])
+  @@map("bills")
+}
+
+/// Uma conta fixa é um modelo recorrente; o pagamento é por COMPETÊNCIA.
+/// Guardar isso numa tabela separada é o que permite navegar entre meses
+/// sem perder o histórico (o protótipo usava um booleano só, que não fecha).
+model BillPayment {
+  id             String   @id @default(uuid())
+  billId         String
+  bill           Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceMonth DateTime @db.Date
+  amountCents    Int
+  paidAt         DateTime @default(now())
+
+  @@unique([billId, referenceMonth])
+  @@index([userId, referenceMonth])
+  @@map("bill_payments")
+}
+
+model Income {
+  id          String  @id @default(uuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String  @db.VarChar(60)
+  amountCents Int
+  receiptDay  Int
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+  @@map("incomes")
+}
+
+model Debt {
+  id                String @id @default(uuid())
+  userId            String
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String @db.VarChar(60)
+  installmentCents  Int
+  paidInstallments  Int    @default(0)
+  totalInstallments Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("debts")
+}
+
+model Goal {
+  id          String  @id @default(uuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String  @db.VarChar(60)
+  targetCents Int
+  savedCents  Int     @default(0)
+  featured    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deposits GoalDeposit[]
+
+  @@index([userId])
+  @@map("goals")
+}
+
+model GoalDeposit {
+  id          String   @id @default(uuid())
+  goalId      String
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  @@index([goalId])
+  @@map("goal_deposits")
+}
