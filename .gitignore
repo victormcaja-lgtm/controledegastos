@@ -5,6 +5,7 @@ coverage/
 .turbo/
 .vercel/
 .railway/
+.vite/
 
 # Ambiente — NUNCA versione segredos
 .env
