@@ -1,38 +1,35 @@
 import type { ReactNode } from 'react';
 import { BottomNav } from '@/components/organisms/BottomNav';
+import { TopNav } from '@/components/organisms/TopNav';
 
 export interface PhoneShellProps {
-  headerRight?: ReactNode;
   children: ReactNode;
   toast?: ReactNode;
 }
 
 /**
- * Moldura do app.
+ * Casca do app autenticado.
  *
- * No celular (abaixo do `sm`) só a área de conteúdo aparece, ocupando a tela
- * inteira — sem moldura, sem borda. A partir do `sm` (tablet/desktop) vira o
- * "aparelho" centralizado do protótipo, com o bezel escuro em volta. Um único
- * lugar decide isso — as páginas nunca falam de layout externo, só do próprio
- * conteúdo.
+ * No celular (abaixo do `sm`) o conteúdo ocupa a tela inteira, sem moldura
+ * nem borda decorativa — só a barra de navegação fixa no rodapé. A partir do
+ * `sm` (tablet/desktop) vira uma página normal, com navegação fixa no topo e
+ * o conteúdo centralizado numa coluna confortável de leitura — nada de
+ * "aparelho" simulado com bezel: aquilo era só uma ilustração de protótipo,
+ * não um limite real de layout.
  */
-export function PhoneShell({ headerRight, children, toast }: PhoneShellProps) {
+export function PhoneShell({ children, toast }: PhoneShellProps) {
   return (
-    <div className="flex min-h-dvh flex-col items-center bg-cream sm:gap-5 sm:px-4 sm:pt-8 sm:pb-8">
-      <header className="hidden w-full max-w-[430px] items-baseline justify-between px-1 sm:flex">
-        <span className="font-display text-lg font-bold tracking-[-0.02em]">Grana</span>
-        {headerRight}
-      </header>
+    <div className="min-h-dvh bg-cream">
+      <TopNav />
 
-      <div className="w-full max-w-[430px] sm:rounded-[40px] sm:bg-ink sm:p-2.5 sm:shadow-[0_24px_60px_-20px_rgba(20,19,15,0.45)]">
-        <div className="relative flex h-dvh flex-col overflow-hidden bg-surface sm:h-[812px] sm:rounded-[32px]">
-          <div className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-[calc(78px+env(safe-area-inset-bottom))]">
-            {children}
-          </div>
-          {toast}
-          <BottomNav />
+      <div className="mx-auto flex h-dvh max-w-2xl flex-col sm:h-auto sm:block">
+        <div className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-[calc(78px+env(safe-area-inset-bottom))] sm:overflow-visible sm:pt-6 sm:pb-12">
+          {children}
         </div>
       </div>
+
+      {toast}
+      <BottomNav />
     </div>
   );
 }

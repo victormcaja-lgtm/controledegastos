@@ -1,36 +1,17 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { NAV_ITEMS, isMoreSection } from './nav-items';
 
-interface NavItem {
-  to: string;
-  label: string;
-  glyph: string;
-  end: boolean;
-  /** O botão central de lançar tem tratamento visual próprio. */
-  primary?: boolean;
-}
-
-const ITEMS: NavItem[] = [
-  { to: '/', label: 'Início', glyph: '◍', end: true },
-  { to: '/lista', label: 'Lista', glyph: '≡', end: false },
-  { to: '/lancar', label: 'Lançar', glyph: '+', end: false, primary: true },
-  { to: '/contas', label: 'Contas', glyph: '▤', end: false },
-  { to: '/mais', label: 'Mais', glyph: '◔', end: false },
-];
-
-/** Barra inferior fixa — a navegação principal do app. */
+/** Barra inferior fixa — a navegação principal do app no celular (só abaixo do `sm`). */
 export function BottomNav() {
   const { pathname } = useLocation();
-  const inMore = ['/mais', '/parcelas', '/guardar', '/ajustes'].some((path) =>
-    pathname.startsWith(path),
-  );
 
   return (
     <nav
       aria-label="Navegação principal"
-      className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-around border-t border-line bg-card/95 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-around border-t border-line bg-card/95 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden"
     >
-      {ITEMS.map((item) => (
+      {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -38,7 +19,7 @@ export function BottomNav() {
           className="flex w-[56px] flex-col items-center gap-1"
         >
           {({ isActive }) => {
-            const active = isActive || (item.to === '/mais' && inMore);
+            const active = isActive || (item.to === '/mais' && isMoreSection(pathname));
             return (
               <>
                 <span
