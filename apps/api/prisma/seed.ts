@@ -172,10 +172,25 @@ async function seedDemoData(userId: string) {
     ],
   });
 
-  const bills = [
+  const startMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const bills: Array<{
+    name: string;
+    category: string;
+    amountCents: number;
+    dueDay: number;
+    totalInstallments?: number;
+  }> = [
     { name: 'Faculdade', category: 'Educação', amountCents: 78_000, dueDay: 8 },
     { name: 'Aluguel', category: 'Casa', amountCents: 120_000, dueDay: 10 },
-    { name: 'Moto (financiamento)', category: 'Transporte', amountCents: 43_000, dueDay: 12 },
+    {
+      name: 'Moto (financiamento)',
+      category: 'Transporte',
+      amountCents: 43_000,
+      dueDay: 12,
+      // Exemplo de conta com prazo: some do calendário sozinha após 24 parcelas.
+      totalInstallments: 24,
+    },
     { name: 'Assinaturas', category: 'Assinaturas', amountCents: 8_990, dueDay: 15 },
     { name: 'Seguro da moto', category: 'Transporte', amountCents: 11_800, dueDay: 20 },
     { name: 'Cartão', category: 'Dívidas', amountCents: 64_000, dueDay: 22 },
@@ -189,6 +204,8 @@ async function seedDemoData(userId: string) {
         name: bill.name,
         amountCents: bill.amountCents,
         dueDay: bill.dueDay,
+        startMonth,
+        totalInstallments: bill.totalInstallments ?? null,
       },
     });
   }

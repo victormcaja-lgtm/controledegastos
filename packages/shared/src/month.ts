@@ -69,6 +69,13 @@ export function compareMonthRef(a: MonthRef, b: MonthRef): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** Quantos meses separam duas competências (`b` menos `a`; negativo se `b` vem antes). */
+export function monthsBetween(a: MonthRef, b: MonthRef): number {
+  const from = parseMonthRef(a);
+  const to = parseMonthRef(b);
+  return (to.year - from.year) * 12 + (to.monthIndex - from.monthIndex);
+}
+
 /** Primeiro instante do mês, em UTC. É o valor gravado na coluna `referenceMonth`. */
 export function monthStart(month: MonthRef): Date {
   const { year, monthIndex } = parseMonthRef(month);

@@ -27,7 +27,7 @@ export class GetBillsOverviewUseCase {
       toBillDTO(record, month, paymentByBill.get(record.id)),
     );
 
-    const active = dtos.filter((bill) => bill.active);
+    const active = dtos.filter((bill) => bill.active && !bill.finished);
     const paidCents = active
       .filter((bill) => bill.paid)
       .reduce((sum, bill) => sum + bill.amountCents, 0);
@@ -92,6 +92,8 @@ export class CreateBillUseCase {
       name: data.name,
       amountCents: data.amountCents,
       dueDay: data.dueDay,
+      startMonth: month,
+      totalInstallments: data.totalInstallments ?? null,
     });
     return toBillDTO(created, month, undefined);
   }

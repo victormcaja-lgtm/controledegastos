@@ -24,7 +24,13 @@ import { useMonth } from '@/application/month/useMonth';
 import { useToast } from '@/application/toast/ToastProvider';
 import { ApiRequestError } from '@/infra/http/api-client';
 
-type FormValues = { name: string; categoryId: string; valor: string; dueDay: number };
+type FormValues = {
+  name: string;
+  categoryId: string;
+  valor: string;
+  dueDay: number;
+  totalInstallments: string;
+};
 
 export function BillsPage() {
   const { month, setMonth } = useMonth();
@@ -46,7 +52,7 @@ export function BillsPage() {
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { name: '', categoryId: '', valor: '', dueDay: 5 },
+    defaultValues: { name: '', categoryId: '', valor: '', dueDay: 5, totalInstallments: '' },
   });
 
   const expenseCategories = (categories ?? []).filter(
@@ -56,11 +62,15 @@ export function BillsPage() {
   const onSubmit = handleSubmit(async (values) => {
     // O formulário trabalha em reais; o domínio, em centavos. A conversão é aqui.
     const amountCents = Math.round(Number(values.valor.replace(',', '.')) * 100);
+    const totalInstallments = values.totalInstallments.trim()
+      ? Number(values.totalInstallments)
+      : null;
     const payload: CreateBillRequest = {
       name: values.name,
       categoryId: values.categoryId,
       amountCents,
       dueDay: Number(values.dueDay),
+      totalInstallments,
     };
 
     const parsed = createBillRequestSchema.safeParse(payload);
@@ -145,6 +155,20 @@ export function BillsPage() {
               </FormField>
             </div>
 
+            <FormField
+              label="Parcelas (opcional)"
+              error={errors.totalInstallments?.message}
+              hint="Quantas vezes ela se repete a partir de agora. Deixe em branco para uma conta recorrente sem fim, como aluguel ou assinatura."
+            >
+              <Input
+                type="number"
+                min={1}
+                max={600}
+                placeholder="Ex.: 24"
+                {...register('totalInstallments')}
+              />
+            </FormField>
+
             <Button type="submit" fullWidth loading={createBill.isPending}>
               Cadastrar conta
             </Button>
@@ -182,9 +206,21 @@ export function BillsPage() {
               <div className="min-w-0 flex-1">
                 <p className={clsx('truncate text-sm font-medium', bill.paid && 'text-muted')}>
                   {bill.name}
+                  {bill.totalInstallments !== null && (
+                    <span className="ml-1.5 text-[11px] font-normal text-faint">
+                      {bill.finished
+                        ? '· quitada'
+                        : `· ${bill.installmentNumber}/${bill.totalInstallments}`}
+                    </span>
+                  )}
                 </p>
                 <p className="truncate text-[11.5px] text-muted">
-                  {bill.paid ? 'pago' : `vence dia ${bill.dueDay}`} · {bill.category.name}
+                  {bill.finished
+                    ? 'última parcela encerrada'
+                    : bill.paid
+                      ? 'pago'
+                      : `vence dia ${bill.dueDay}`}{' '}
+                  · {bill.category.name}
                 </p>
               </div>
 
@@ -193,7 +229,7 @@ export function BillsPage() {
                 hideCents={hideCents}
                 className={clsx(
                   'font-display text-[15px] font-semibold',
-                  bill.paid ? 'text-muted' : 'text-ink',
+                  (bill.paid || bill.finished) && 'text-muted',
                 )}
               />
 

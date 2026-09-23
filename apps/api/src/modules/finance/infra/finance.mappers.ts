@@ -1,6 +1,7 @@
 import {
   isoDateFromMonthDay,
   percentOf,
+  toMonthRef,
   type BillDTO,
   type CategoryDTO,
   type DebtDTO,
@@ -17,6 +18,7 @@ import type {
   IncomeRecord,
   TransactionRecord,
 } from '../domain/ports.js';
+import { billInstallmentNumber, isBillFinished } from '../domain/budget.calculator.js';
 
 /** Converte a data `@db.Date` do Postgres para `YYYY-MM-DD` sem sofrer com fuso. */
 export function toISODate(date: Date): string {
@@ -56,6 +58,8 @@ export function toBillDTO(
   month: MonthRef,
   payment: { paidAt: Date } | undefined,
 ): BillDTO {
+  const schedule = { startMonth: toMonthRef(record.startMonth), totalInstallments: record.totalInstallments };
+
   return {
     id: record.id,
     name: record.name,
@@ -71,6 +75,9 @@ export function toBillDTO(
     paid: payment !== undefined,
     paidAt: payment ? payment.paidAt.toISOString() : null,
     dueDate: isoDateFromMonthDay(month, record.dueDay),
+    totalInstallments: record.totalInstallments,
+    installmentNumber: billInstallmentNumber(schedule, month),
+    finished: isBillFinished(schedule, month),
   };
 }
 

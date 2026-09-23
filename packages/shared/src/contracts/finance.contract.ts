@@ -103,14 +103,24 @@ export const billSchema = z.object({
   paid: z.boolean(),
   paidAt: z.string().nullable(),
   dueDate: z.string(),
+  /** `null` = conta recorrente sem fim definido (aluguel, assinatura...). */
+  totalInstallments: z.number().int().nullable(),
+  /** Parcela vigente na competência consultada (1-based); `null` se não tem prazo. */
+  installmentNumber: z.number().int().nullable(),
+  /** A última parcela já passou da competência consultada. */
+  finished: z.boolean(),
 });
 export type BillDTO = z.infer<typeof billSchema>;
+
+const totalInstallmentsSchema = z.number().int().min(1).max(600).nullable().optional();
 
 export const createBillRequestSchema = z.object({
   name: nameSchema,
   categoryId: idSchema,
   amountCents: centsSchema,
   dueDay: dayOfMonthSchema,
+  /** Quantas vezes a conta se repete a partir de agora. Vazio = recorrente sem fim. */
+  totalInstallments: totalInstallmentsSchema,
 });
 export type CreateBillRequest = z.infer<typeof createBillRequestSchema>;
 
@@ -121,6 +131,7 @@ export const updateBillRequestSchema = z
     amountCents: centsSchema.optional(),
     dueDay: dayOfMonthSchema.optional(),
     active: z.boolean().optional(),
+    totalInstallments: totalInstallmentsSchema,
   })
   .refine((data) => Object.keys(data).length > 0, 'Nada para atualizar.');
 export type UpdateBillRequest = z.infer<typeof updateBillRequestSchema>;

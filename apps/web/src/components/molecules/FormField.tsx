@@ -5,7 +5,7 @@ export interface FormFieldProps {
   label: string;
   error?: string | undefined;
   hint?: string;
-  children: ReactElement<{ id?: string; 'aria-describedby'?: string; invalid?: boolean }>;
+  children: ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>;
   className?: string;
 }
 
@@ -28,7 +28,7 @@ export function FormField({ label, error, hint, children, className }: FormField
       {cloneElement(children, {
         id,
         ...(describedBy ? { 'aria-describedby': describedBy } : {}),
-        invalid: Boolean(error),
+        'aria-invalid': Boolean(error),
       })}
       {hint && !error && (
         <p id={hintId} className="text-[11.5px] text-muted">

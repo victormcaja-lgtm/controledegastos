@@ -184,6 +184,10 @@ model Bill {
   amountCents Int
   dueDay      Int
   active      Boolean  @default(true)
+  /// Competência a partir da qual a conta vigora (o mês em que foi criada).
+  startMonth        DateTime @db.Date
+  /// `null` = recorrente sem fim (aluguel, assinatura...); do contrário, quantas parcelas.
+  totalInstallments Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

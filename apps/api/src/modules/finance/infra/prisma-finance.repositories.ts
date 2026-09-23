@@ -234,9 +234,19 @@ export class PrismaBillRepository implements BillRepository {
     name: string;
     amountCents: number;
     dueDay: number;
+    startMonth: MonthRef;
+    totalInstallments: number | null;
   }) {
     const created = await this.db.bill.create({
-      data,
+      data: {
+        userId: data.userId,
+        categoryId: data.categoryId,
+        name: data.name,
+        amountCents: data.amountCents,
+        dueDay: data.dueDay,
+        startMonth: monthStart(data.startMonth),
+        totalInstallments: data.totalInstallments,
+      },
       include: { category: { select: CATEGORY_SELECT } },
     });
     return created as unknown as BillRecord;
@@ -251,6 +261,7 @@ export class PrismaBillRepository implements BillRepository {
       amountCents?: number;
       dueDay?: number;
       active?: boolean;
+      totalInstallments?: number | null;
     },
   ) {
     const result = await this.db.bill.updateMany({ where: { id, userId }, data });

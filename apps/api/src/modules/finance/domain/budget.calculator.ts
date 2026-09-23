@@ -3,6 +3,7 @@ import {
   formatMoney,
   monthLabel,
   monthNameShort,
+  monthsBetween,
   percentOf,
   weekIndexOfDay,
   type MonthRef,
@@ -132,6 +133,29 @@ export function calculateBudget(input: BudgetInput): BudgetResult {
     weeks,
     weekNote,
   };
+}
+
+/* ───────────────────── Parcelas de conta fixa (contas) ──────────────── */
+
+export interface BillScheduleLike {
+  startMonth: MonthRef;
+  totalInstallments: number | null;
+}
+
+/**
+ * Número da parcela vigente (1-based) numa competência, para uma conta com
+ * prazo definido. `null` quando a conta é recorrente sem fim.
+ */
+export function billInstallmentNumber(bill: BillScheduleLike, month: MonthRef): number | null {
+  if (bill.totalInstallments === null) return null;
+  return monthsBetween(bill.startMonth, month) + 1;
+}
+
+/** Verdadeiro quando a última parcela de uma conta com prazo já passou da competência. */
+export function isBillFinished(bill: BillScheduleLike, month: MonthRef): boolean {
+  if (bill.totalInstallments === null) return false;
+  const number = billInstallmentNumber(bill, month);
+  return number !== null && number > bill.totalInstallments;
 }
 
 /* ───────────────────────── Projeção de parcelas ─────────────────────── */

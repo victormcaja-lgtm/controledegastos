@@ -4,19 +4,28 @@ import {
   isoDateFromMonthDay,
   monthLabel,
   percentOf,
+  toMonthRef,
   type CategoryReport,
   type DashboardSummary,
   type MonthRef,
   type SettingsDTO,
   type UpdateSettingsRequest,
 } from '@grana/shared';
-import { calculateBudget } from '../domain/budget.calculator.js';
+import { calculateBudget, isBillFinished } from '../domain/budget.calculator.js';
 import type {
+  BillRecord,
   BillRepository,
   IncomeRepository,
   SettingsRepository,
   TransactionRepository,
 } from '../domain/ports.js';
+
+/** Contas com prazo definido saem da vigência assim que a última parcela passa. */
+function billsInEffect(records: BillRecord[], month: MonthRef): BillRecord[] {
+  return records.filter(
+    (record) => !isBillFinished({ startMonth: toMonthRef(record.startMonth), totalInstallments: record.totalInstallments }, month),
+  );
+}
 
 /**
  * Este caso de uso é o coração da tela inicial. Ele reúne o dado de quatro
@@ -31,7 +40,7 @@ export class GetDashboardSummaryUseCase {
   ) {}
 
   async execute(userId: string, month: MonthRef = currentMonthRef()): Promise<DashboardSummary> {
-    const [monthTransactions, activeBills, payments, incomes, average] = await Promise.all([
+    const [monthTransactions, allActiveBills, payments, incomes, average] = await Promise.all([
       this.transactions.listForMonth(userId, month),
       this.bills.listActive(userId),
       this.bills.paymentsForMonth(userId, month),
@@ -39,6 +48,7 @@ export class GetDashboardSummaryUseCase {
       this.transactions.averageMonthlyExpense(userId, 3),
     ]);
 
+    const activeBills = billsInEffect(allActiveBills, month);
     const paidBillIds = new Set(payments.map((payment) => payment.billId));
 
     const budget = calculateBudget({
@@ -103,11 +113,12 @@ export class GetCategoryReportUseCase {
   ) {}
 
   async execute(userId: string, month: MonthRef = currentMonthRef()): Promise<CategoryReport> {
-    const [monthTransactions, activeBills, previousTransactions] = await Promise.all([
+    const [monthTransactions, allActiveBills, previousTransactions] = await Promise.all([
       this.transactions.listForMonth(userId, month),
       this.bills.listActive(userId),
       this.transactions.listForMonth(userId, previousMonth(month)),
     ]);
+    const activeBills = billsInEffect(allActiveBills, month);
 
     const totals = new Map<string, { name: string; color: string; totalCents: number }>();
 

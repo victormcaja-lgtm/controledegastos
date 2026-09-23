@@ -30,6 +30,8 @@ export interface BillRecord {
   amountCents: number;
   dueDay: number;
   active: boolean;
+  startMonth: Date;
+  totalInstallments: number | null;
   category: Pick<CategoryRecord, 'id' | 'name' | 'color' | 'kind'>;
 }
 
@@ -136,6 +138,8 @@ export interface BillRepository {
     name: string;
     amountCents: number;
     dueDay: number;
+    startMonth: MonthRef;
+    totalInstallments: number | null;
   }): Promise<BillRecord>;
   update(
     userId: string,
@@ -146,6 +150,7 @@ export interface BillRepository {
       amountCents?: number;
       dueDay?: number;
       active?: boolean;
+      totalInstallments?: number | null;
     },
   ): Promise<BillRecord>;
   delete(userId: string, id: string): Promise<void>;
