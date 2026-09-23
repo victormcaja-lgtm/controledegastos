@@ -208,19 +208,12 @@ export function BillsPage() {
                   {bill.name}
                   {bill.totalInstallments !== null && (
                     <span className="ml-1.5 text-[11px] font-normal text-faint">
-                      {bill.finished
-                        ? '· quitada'
-                        : `· ${bill.installmentNumber}/${bill.totalInstallments}`}
+                      · {bill.installmentNumber}/{bill.totalInstallments}
                     </span>
                   )}
                 </p>
                 <p className="truncate text-[11.5px] text-muted">
-                  {bill.finished
-                    ? 'última parcela encerrada'
-                    : bill.paid
-                      ? 'pago'
-                      : `vence dia ${bill.dueDay}`}{' '}
-                  · {bill.category.name}
+                  {bill.paid ? 'pago' : `vence dia ${bill.dueDay}`} · {bill.category.name}
                 </p>
               </div>
 
@@ -229,7 +222,7 @@ export function BillsPage() {
                 hideCents={hideCents}
                 className={clsx(
                   'font-display text-[15px] font-semibold',
-                  (bill.paid || bill.finished) && 'text-muted',
+                  bill.paid ? 'text-muted' : 'text-ink',
                 )}
               />
 

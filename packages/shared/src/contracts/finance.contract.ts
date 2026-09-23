@@ -107,8 +107,6 @@ export const billSchema = z.object({
   totalInstallments: z.number().int().nullable(),
   /** Parcela vigente na competência consultada (1-based); `null` se não tem prazo. */
   installmentNumber: z.number().int().nullable(),
-  /** A última parcela já passou da competência consultada. */
-  finished: z.boolean(),
 });
 export type BillDTO = z.infer<typeof billSchema>;
 

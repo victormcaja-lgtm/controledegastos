@@ -18,7 +18,7 @@ import type {
   IncomeRecord,
   TransactionRecord,
 } from '../domain/ports.js';
-import { billInstallmentNumber, isBillFinished } from '../domain/budget.calculator.js';
+import { billInstallmentNumber } from '../domain/budget.calculator.js';
 
 /** Converte a data `@db.Date` do Postgres para `YYYY-MM-DD` sem sofrer com fuso. */
 export function toISODate(date: Date): string {
@@ -77,7 +77,6 @@ export function toBillDTO(
     dueDate: isoDateFromMonthDay(month, record.dueDay),
     totalInstallments: record.totalInstallments,
     installmentNumber: billInstallmentNumber(schedule, month),
-    finished: isBillFinished(schedule, month),
   };
 }
 

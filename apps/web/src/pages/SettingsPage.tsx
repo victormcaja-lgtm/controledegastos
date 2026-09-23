@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import type { SettingsDTO } from '@grana/shared';
+import type { CategoryKind, SettingsDTO } from '@grana/shared';
 import { Card } from '@/components/atoms/Card';
 import { Button } from '@/components/atoms/Button';
 import { Input } from '@/components/atoms/Input';
@@ -13,10 +13,14 @@ import { SectionHeader } from '@/components/molecules/SectionHeader';
 import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import { MoreTabs } from '@/components/organisms/MoreTabs';
 import {
+  useCategories,
+  useCreateCategory,
   useCreateIncome,
+  useDeleteCategory,
   useDeleteIncome,
   useIncomes,
   useSettings,
+  useUpdateCategory,
   useUpdateSettings,
 } from '@/application/hooks/queries';
 import { useAuthStore } from '@/application/auth/auth.store';
@@ -58,12 +62,18 @@ export function SettingsPage() {
 
   const { data: settings, isPending } = useSettings();
   const { data: incomes } = useIncomes();
+  const { data: categories } = useCategories();
   const updateSettings = useUpdateSettings();
   const createIncome = useCreateIncome();
   const deleteIncome = useDeleteIncome();
+  const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
 
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   const { register, handleSubmit, reset } = useForm<{
     name: string;
@@ -71,6 +81,14 @@ export function SettingsPage() {
     receiptDay: number;
   }>({
     defaultValues: { name: '', valor: '', receiptDay: 5 },
+  });
+
+  const {
+    register: registerCategory,
+    handleSubmit: handleSubmitCategory,
+    reset: resetCategory,
+  } = useForm<{ name: string; kind: CategoryKind }>({
+    defaultValues: { name: '', kind: 'EXPENSE' },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -87,6 +105,26 @@ export function SettingsPage() {
       showError(error instanceof ApiRequestError ? error.message : 'Não deu para cadastrar.');
     }
   });
+
+  const onSubmitCategory = handleSubmitCategory(async (values) => {
+    try {
+      await createCategory.mutateAsync({ name: values.name, kind: values.kind });
+      show('Categoria cadastrada');
+      resetCategory();
+      setCategoryFormOpen(false);
+    } catch (error) {
+      showError(error instanceof ApiRequestError ? error.message : 'Não deu para cadastrar.');
+    }
+  });
+
+  async function archiveCategory(id: string, name: string) {
+    try {
+      await updateCategory.mutateAsync({ id, data: { archived: true } });
+      show(`${name} arquivada`);
+    } catch (error) {
+      showError(error instanceof ApiRequestError ? error.message : 'Não deu para arquivar.');
+    }
+  }
 
   if (isPending || !settings) {
     return (
@@ -168,6 +206,79 @@ export function SettingsPage() {
       </Card>
 
       <Card className="mt-3.5">
+        <SectionHeader title="Categorias" aside={`${categories?.length ?? 0} cadastradas`} />
+
+        <ul className="mt-2">
+          {(categories ?? []).map((category) => (
+            <li
+              key={category.id}
+              className="flex items-center gap-3 border-b border-line-soft py-3 last:border-0"
+            >
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ background: category.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{category.name}</p>
+                <p className="text-[11.5px] text-muted">
+                  {category.kind === 'EXPENSE' ? 'despesa' : 'receita'}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void archiveCategory(category.id, category.name)}
+                  className="text-[12.5px] font-medium text-soft transition-colors hover:text-ink"
+                >
+                  arquivar
+                </button>
+                {!category.isSystem && (
+                  <button
+                    type="button"
+                    aria-label={`Excluir ${category.name}`}
+                    onClick={() => setCategoryToDelete(category.id)}
+                    className="px-1 text-muted transition-colors hover:text-clay"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => setCategoryFormOpen((open) => !open)}
+          className="mt-3 text-[13px] font-medium text-green"
+        >
+          {categoryFormOpen ? 'fechar' : '+ nova categoria'}
+        </button>
+
+        {categoryFormOpen && (
+          <form onSubmit={onSubmitCategory} className="mt-3 flex flex-col gap-3">
+            <FormField label="Nome">
+              <Input placeholder="Farmácia" {...registerCategory('name', { required: true })} />
+            </FormField>
+            <FormField label="Tipo">
+              <select
+                {...registerCategory('kind')}
+                className="h-11 w-full rounded-xl border border-line bg-card px-3 text-sm"
+              >
+                <option value="EXPENSE">Despesa</option>
+                <option value="INCOME">Receita</option>
+              </select>
+            </FormField>
+            <Button type="submit" fullWidth loading={createCategory.isPending}>
+              Cadastrar
+            </Button>
+          </form>
+        )}
+      </Card>
+
+      <Card className="mt-3.5">
         <SectionHeader title="Preferências" />
         <ul className="mt-2">
           {TOGGLES.map((item) => (
@@ -229,6 +340,27 @@ export function SettingsPage() {
           show('Entrada removida');
         }}
         onCancel={() => setToDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={categoryToDelete !== null}
+        title="Excluir esta categoria?"
+        description="Só é possível excluir categorias sem nenhum lançamento ou conta usando elas."
+        confirmLabel="Excluir"
+        destructive
+        loading={deleteCategory.isPending}
+        onConfirm={async () => {
+          if (!categoryToDelete) return;
+          try {
+            await deleteCategory.mutateAsync(categoryToDelete);
+            show('Categoria excluída');
+          } catch (error) {
+            showError(error instanceof ApiRequestError ? error.message : 'Não deu para excluir.');
+          } finally {
+            setCategoryToDelete(null);
+          }
+        }}
+        onCancel={() => setCategoryToDelete(null)}
       />
     </div>
   );

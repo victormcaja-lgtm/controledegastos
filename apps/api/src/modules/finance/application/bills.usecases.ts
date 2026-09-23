@@ -3,6 +3,7 @@ import {
   daysInMonth,
   firstWeekdayOfMonth,
   monthLabel,
+  toMonthRef,
   type BillDTO,
   type BillsOverview,
   type CreateBillRequest,
@@ -10,6 +11,7 @@ import {
   type UpdateBillRequest,
 } from '@grana/shared';
 import { BusinessRuleError, NotFoundError } from '../../../shared/domain/errors.js';
+import { isBillFinished } from '../domain/budget.calculator.js';
 import type { BillRepository, CategoryRepository } from '../domain/ports.js';
 import { toBillDTO } from '../infra/finance.mappers.js';
 
@@ -17,17 +19,27 @@ export class GetBillsOverviewUseCase {
   constructor(private readonly bills: BillRepository) {}
 
   async execute(userId: string, month: MonthRef = currentMonthRef()): Promise<BillsOverview> {
-    const [records, payments] = await Promise.all([
+    const [allRecords, payments] = await Promise.all([
       this.bills.listAll(userId),
       this.bills.paymentsForMonth(userId, month),
     ]);
+
+    // Uma conta com prazo some da lista sozinha assim que a última parcela passa —
+    // o histórico continua existindo, só não aparece mais no dia a dia.
+    const records = allRecords.filter(
+      (record) =>
+        !isBillFinished(
+          { startMonth: toMonthRef(record.startMonth), totalInstallments: record.totalInstallments },
+          month,
+        ),
+    );
 
     const paymentByBill = new Map(payments.map((payment) => [payment.billId, payment]));
     const dtos: BillDTO[] = records.map((record) =>
       toBillDTO(record, month, paymentByBill.get(record.id)),
     );
 
-    const active = dtos.filter((bill) => bill.active && !bill.finished);
+    const active = dtos.filter((bill) => bill.active);
     const paidCents = active
       .filter((bill) => bill.paid)
       .reduce((sum, bill) => sum + bill.amountCents, 0);

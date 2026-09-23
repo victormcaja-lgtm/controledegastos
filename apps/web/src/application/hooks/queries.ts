@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
   CreateBillRequest,
+  CreateCategoryRequest,
   CreateDebtRequest,
   CreateGoalRequest,
   CreateIncomeRequest,
@@ -10,6 +11,7 @@ import type {
   ListUsersQuery,
   MonthRef,
   UpdateBillRequest,
+  UpdateCategoryRequest,
   UpdateDebtRequest,
   UpdateGoalRequest,
   UpdateIncomeRequest,
@@ -130,9 +132,31 @@ export function useDeleteTransaction() {
 export function useCreateCategory() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; kind: 'EXPENSE' | 'INCOME' }) =>
-      granaGateway.createCategory(data),
+    mutationFn: (data: CreateCategoryRequest) => granaGateway.createCategory(data),
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.categories() }),
+  });
+}
+
+export function useUpdateCategory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateCategoryRequest }) =>
+      granaGateway.updateCategory(id, data),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.categories() });
+      invalidateMoney(client);
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => granaGateway.deleteCategory(id),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.categories() });
+      invalidateMoney(client);
+    },
   });
 }
 
