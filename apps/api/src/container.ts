@@ -9,6 +9,7 @@ import { PrismaUserRepository } from './modules/identity/infra/prisma-user.repos
 
 import { AuthenticateUserUseCase } from './modules/identity/application/authenticate-user.usecase.js';
 import { RefreshSessionUseCase } from './modules/identity/application/refresh-session.usecase.js';
+import { SignupUseCase } from './modules/identity/application/signup.usecase.js';
 import {
   ChangePasswordUseCase,
   GetProfileUseCase,
@@ -120,6 +121,7 @@ export function buildContainer(app: FastifyInstance) {
         tokens,
         audit,
       ),
+      signup: new SignupUseCase(userRepository, hasher, workspaceProvisioner, audit),
       refresh: new RefreshSessionUseCase(userRepository, refreshTokenRepository, tokens),
       logout: new LogoutUseCase(refreshTokenRepository, tokens),
       profile: new GetProfileUseCase(userRepository),

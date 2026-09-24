@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const userRoleSchema = z.enum(['ADMIN', 'USER']);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
-export const userStatusSchema = z.enum(['ACTIVE', 'SUSPENDED']);
+export const userStatusSchema = z.enum(['ACTIVE', 'SUSPENDED', 'PENDING']);
 export type UserStatus = z.infer<typeof userStatusSchema>;
 
 export const categoryKindSchema = z.enum(['EXPENSE', 'INCOME']);

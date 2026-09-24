@@ -24,6 +24,7 @@ import type {
   MonthRef,
   ResetUserPasswordRequest,
   SettingsDTO,
+  SignupRequest,
   TransactionDayGroup,
   TransactionDTO,
   UpdateBillRequest,
@@ -60,6 +61,7 @@ export interface TransactionsPage extends Paginated<TransactionDTO> {
 export const granaGateway = {
   /* ── Sessão ── */
   login: (data: LoginRequest) => api.post<LoginResponse>('/api/auth/login', data),
+  signup: (data: SignupRequest) => api.post<void>('/api/auth/signup', data),
   logout: () => api.post<void>('/api/auth/logout'),
   refresh: () => api.post<LoginResponse>('/api/auth/refresh'),
   me: () => api.get<AuthenticatedUser>('/api/auth/me'),

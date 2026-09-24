@@ -7,6 +7,7 @@ import { useAuthStore } from '@/application/auth/auth.store';
 import { useToast } from '@/application/toast/ToastProvider';
 
 import { LoginPage } from '@/pages/LoginPage';
+import { SignupPage } from '@/pages/SignupPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { HomePage } from '@/pages/HomePage';
 import { AddEntryPage } from '@/pages/AddEntryPage';
@@ -67,6 +68,10 @@ export function AppRoutes() {
       <Route
         path="/entrar"
         element={status === 'autenticado' ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/criar-conta"
+        element={status === 'autenticado' ? <Navigate to="/" replace /> : <SignupPage />}
       />
 
       <Route element={<RequireAuth />}>

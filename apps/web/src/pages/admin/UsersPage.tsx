@@ -43,12 +43,25 @@ export function UsersPage() {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<UserDTO | null>(null);
+  const [toReject, setToReject] = useState<UserDTO | null>(null);
 
   const { data, isPending } = useUsers({ page, perPage: 20, ...(search ? { search } : {}) });
+  const { data: pending } = useUsers({ status: 'PENDING', page: 1, perPage: 50 });
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const resetPassword = useResetUserPassword();
   const deleteUser = useDeleteUser();
+
+  function approve(user: UserDTO) {
+    updateUser.mutate(
+      { id: user.id, data: { status: 'ACTIVE' } },
+      {
+        onSuccess: () => show(`${user.name} aprovado`),
+        onError: (error) =>
+          showError(error instanceof ApiRequestError ? error.message : 'Não deu para aprovar.'),
+      },
+    );
+  }
 
   const {
     register,
@@ -116,6 +129,35 @@ export function UsersPage() {
         </Button>
       }
     >
+      {pending && pending.items.length > 0 && (
+        <div className="mb-6 rounded-[22px] border border-clay/40 bg-clay/5 p-5">
+          <p className="mb-3 text-sm font-semibold text-ink">
+            Solicitações de acesso pendentes ({pending.items.length})
+          </p>
+          <ul className="flex flex-col gap-2.5">
+            {pending.items.map((user) => (
+              <li
+                key={user.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{user.name}</p>
+                  <p className="text-[12px] text-muted">{user.email}</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="sm" onClick={() => approve(user)} loading={updateUser.isPending}>
+                    Aprovar
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setToReject(user)}>
+                    Recusar
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {formOpen && (
         <form
           onSubmit={onSubmit}
@@ -230,10 +272,16 @@ export function UsersPage() {
                           'rounded-full px-2.5 py-1 text-[11px] font-semibold',
                           user.status === 'ACTIVE'
                             ? 'bg-mint/25 text-green'
-                            : 'bg-clay/15 text-clay',
+                            : user.status === 'PENDING'
+                              ? 'bg-chip-strong text-soft'
+                              : 'bg-clay/15 text-clay',
                         )}
                       >
-                        {user.status === 'ACTIVE' ? 'Ativo' : 'Suspenso'}
+                        {user.status === 'ACTIVE'
+                          ? 'Ativo'
+                          : user.status === 'PENDING'
+                            ? 'Pendente'
+                            : 'Suspenso'}
                       </span>
                     </td>
 
@@ -272,7 +320,11 @@ export function UsersPage() {
                             )
                           }
                         >
-                          {user.status === 'ACTIVE' ? 'Suspender' : 'Reativar'}
+                          {user.status === 'ACTIVE'
+                            ? 'Suspender'
+                            : user.status === 'PENDING'
+                              ? 'Aprovar'
+                              : 'Reativar'}
                         </Button>
 
                         <Button
@@ -344,6 +396,27 @@ export function UsersPage() {
           }
         }}
         onCancel={() => setToDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={toReject !== null}
+        title={`Recusar o acesso de ${toReject?.name ?? ''}?`}
+        description="A solicitação é descartada. A pessoa pode se cadastrar de novo se quiser tentar outra vez."
+        confirmLabel="Recusar"
+        destructive
+        loading={deleteUser.isPending}
+        onConfirm={async () => {
+          if (!toReject) return;
+          try {
+            await deleteUser.mutateAsync(toReject.id);
+            show('Solicitação recusada');
+          } catch (error) {
+            showError(error instanceof ApiRequestError ? error.message : 'Não deu para recusar.');
+          } finally {
+            setToReject(null);
+          }
+        }}
+        onCancel={() => setToReject(null)}
       />
     </AdminLayout>
   );

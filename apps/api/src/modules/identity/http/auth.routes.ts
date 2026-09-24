@@ -8,6 +8,7 @@ import {
   changePasswordRequestSchema,
   loginRequestSchema,
   loginResponseSchema,
+  signupRequestSchema,
   updateProfileRequestSchema,
   userSchema,
 } from '@grana/shared';
@@ -74,6 +75,26 @@ export function authRoutes(container: Container): FastifyPluginAsyncZod {
           expiresIn: result.expiresIn,
           user: result.user,
         });
+      },
+    );
+
+    route.post(
+      '/signup',
+      {
+        config: {
+          // Endpoint público: um limite dedicado evita usá-lo para enumerar/spamar contas.
+          rateLimit: { max: 5, timeWindow: '15 minutes' },
+        },
+        schema: {
+          tags: ['Autenticação'],
+          summary: 'Pede uma conta — fica pendente até um administrador aprovar',
+          body: signupRequestSchema,
+          response: { 204: z.null(), 409: apiErrorSchema },
+        },
+      },
+      async (request, reply) => {
+        await container.auth.signup.execute({ data: request.body, ip: request.ip });
+        return reply.status(204).send(null);
       },
     );
 

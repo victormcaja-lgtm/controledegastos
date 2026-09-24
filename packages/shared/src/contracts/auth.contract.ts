@@ -8,6 +8,14 @@ export const loginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+/** Autocadastro: fica pendente até um administrador aprovar. */
+export const signupRequestSchema = z.object({
+  name: z.string().trim().min(2, 'Informe o nome completo.').max(80),
+  email: emailSchema,
+  password: passwordSchema,
+});
+export type SignupRequest = z.infer<typeof signupRequestSchema>;
+
 export const authenticatedUserSchema = z.object({
   id: idSchema,
   name: z.string(),

@@ -3,7 +3,7 @@ import { BusinessRuleError, ForbiddenError } from '../../../shared/domain/errors
 import type { Email } from './email.vo.js';
 
 export type UserRole = 'ADMIN' | 'USER';
-export type UserStatus = 'ACTIVE' | 'SUSPENDED';
+export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING';
 
 export interface UserProps {
   name: string;
@@ -41,6 +41,7 @@ export class User extends Entity<UserProps> {
     email: Email;
     passwordHash: string;
     role?: UserRole;
+    status?: UserStatus;
     mustChangePassword?: boolean;
   }): User {
     const now = new Date();
@@ -49,7 +50,7 @@ export class User extends Entity<UserProps> {
       email: params.email,
       passwordHash: params.passwordHash,
       role: params.role ?? 'USER',
-      status: 'ACTIVE',
+      status: params.status ?? 'ACTIVE',
       mustChangePassword: params.mustChangePassword ?? true,
       failedLoginAttempts: 0,
       lockedUntil: null,

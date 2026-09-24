@@ -76,10 +76,14 @@ export class AuthenticateUserUseCase implements UseCase<
       throw new UnauthorizedError('E-mail ou senha incorretos.');
     }
 
-    // A checagem de status vem DEPOIS da senha: assim uma conta suspensa não é
-    // identificável por quem não sabe a senha.
+    // A checagem de status vem DEPOIS da senha: assim uma conta suspensa (ou
+    // pendente) não é identificável por quem não sabe a senha.
     if (!user.isActive) {
-      throw new UnauthorizedError('Esta conta está suspensa. Fale com o administrador.');
+      throw new UnauthorizedError(
+        user.status === 'PENDING'
+          ? 'Sua conta ainda não foi aprovada pelo administrador.'
+          : 'Esta conta está suspensa. Fale com o administrador.',
+      );
     }
 
     user.registerSuccessfulLogin();

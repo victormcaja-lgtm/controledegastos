@@ -35,6 +35,8 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   SUSPENDED
+  /// Autocadastro aguardando aprovação do administrador.
+  PENDING
 }
 
 enum CategoryKind {

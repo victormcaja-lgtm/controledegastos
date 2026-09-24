@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { loginRequestSchema, type LoginRequest } from '@grana/shared';
 import { AuthLayout } from '@/components/templates/AuthLayout';
 import { Button } from '@/components/atoms/Button';
@@ -41,7 +41,16 @@ export function LoginPage() {
     <AuthLayout
       title="Entrar"
       subtitle="Use o e-mail e a senha que o administrador cadastrou para você."
-      footer="Esqueceu a senha? Peça ao administrador para redefinir."
+      footer={
+        <>
+          Esqueceu a senha? Peça ao administrador para redefinir.
+          <br />
+          Não tem conta?{' '}
+          <Link to="/criar-conta" className="font-medium text-green hover:underline">
+            Criar conta
+          </Link>
+        </>
+      }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <FormField label="E-mail" error={errors.email?.message}>
