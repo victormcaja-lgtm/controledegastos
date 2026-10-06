@@ -12,14 +12,17 @@ import { MonthSwitcher } from '@/components/molecules/MonthSwitcher';
 import { SectionHeader } from '@/components/molecules/SectionHeader';
 import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import { CalendarGrid } from '@/components/organisms/CalendarGrid';
+import { OverdueBillsList } from '@/components/organisms/OverdueBillsList';
 import {
   useBills,
   useCategories,
   useCreateBill,
   useDeleteBill,
+  useOverdueBills,
   useSetBillPayment,
   useSettings,
 } from '@/application/hooks/queries';
+import { features } from '@/config/env';
 import { useMonth } from '@/application/month/useMonth';
 import { useToast } from '@/application/toast/ToastProvider';
 import { ApiRequestError } from '@/infra/http/api-client';
@@ -41,6 +44,7 @@ export function BillsPage() {
   const setPayment = useSetBillPayment(month);
   const createBill = useCreateBill();
   const deleteBill = useDeleteBill();
+  const { data: overdue } = useOverdueBills();
 
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
@@ -98,6 +102,24 @@ export function BillsPage() {
         onChange={setMonth}
         subtitle={`${formatMoney(data.paidCents)} pagas · ${formatMoney(data.dueCents)} a pagar`}
       />
+
+      {features.saldoFuturo && overdue && overdue.length > 0 && (
+        <Card className="mb-3.5 border-clay/40">
+          <SectionHeader
+            title="Em atraso"
+            aside={
+              <span className="text-clay">
+                {formatMoney(overdue.reduce((sum, bill) => sum + bill.amountCents, 0))}
+              </span>
+            }
+          />
+          <p className="mt-1 text-[12.5px] leading-relaxed text-soft">
+            Contas de meses anteriores (ou deste) que venceram sem baixa. Elas acumulam até você
+            pagar.
+          </p>
+          <OverdueBillsList bills={overdue} hideCents={hideCents} />
+        </Card>
+      )}
 
       <Card>
         <CalendarGrid days={data.calendar} />
@@ -204,7 +226,13 @@ export function BillsPage() {
               </button>
 
               <div className="min-w-0 flex-1">
-                <p className={clsx('truncate text-sm font-medium', bill.paid && 'text-muted')}>
+                <p
+                  className={clsx(
+                    'truncate text-sm font-medium',
+                    (bill.paid || bill.waived) && 'text-muted',
+                    bill.waived && 'line-through',
+                  )}
+                >
                   {bill.name}
                   {bill.totalInstallments !== null && (
                     <span className="ml-1.5 text-[11px] font-normal text-faint">
@@ -213,7 +241,8 @@ export function BillsPage() {
                   )}
                 </p>
                 <p className="truncate text-[11.5px] text-muted">
-                  {bill.paid ? 'pago' : `vence dia ${bill.dueDay}`} · {bill.category.name}
+                  {bill.paid ? 'pago' : bill.waived ? 'não vou pagar' : `vence dia ${bill.dueDay}`} ·{' '}
+                  {bill.category.name}
                 </p>
               </div>
 
@@ -222,7 +251,7 @@ export function BillsPage() {
                 hideCents={hideCents}
                 className={clsx(
                   'font-display text-[15px] font-semibold',
-                  bill.paid ? 'text-muted' : 'text-ink',
+                  bill.paid || bill.waived ? 'text-muted' : 'text-ink',
                 )}
               />
 

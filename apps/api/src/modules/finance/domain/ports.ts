@@ -69,6 +69,48 @@ export interface SettingsRecord {
   roundCents: boolean;
   autoDarkMode: boolean;
   showDailyAllowance: boolean;
+  openingBalanceCents: number;
+  /** YYYY-MM-DD ou `null` (saldo futuro não configurado). */
+  openingDate: string | null;
+  dailyBudgetCents: number | null;
+}
+
+export type BillPaymentStatus = 'PAID' | 'WAIVED';
+
+export interface BillPaymentRecord {
+  billId: string;
+  month: MonthRef;
+  status: BillPaymentStatus;
+  amountCents: number;
+  paidAt: Date;
+}
+
+export interface CardRecord {
+  id: string;
+  userId: string;
+  name: string;
+  closingDay: number;
+  dueDay: number;
+  limitCents: number | null;
+  active: boolean;
+}
+
+export interface CardPurchaseRecord {
+  id: string;
+  userId: string;
+  cardId: string;
+  amountCents: number;
+  installments: number;
+  purchasedOn: Date;
+  note: string | null;
+  category: Pick<CategoryRecord, 'id' | 'name' | 'color' | 'kind'>;
+}
+
+export interface GoalDepositRecord {
+  goalId: string;
+  goalName: string;
+  amountCents: number;
+  createdAt: Date;
 }
 
 /* ─────────────────────────────── Portas ──────────────────────────────── */
@@ -126,6 +168,10 @@ export interface TransactionRepository {
   delete(userId: string, id: string): Promise<void>;
   /** Média mensal de gasto variável dos últimos `months` meses fechados. */
   averageMonthlyExpense(userId: string, months: number): Promise<number>;
+  /** Lançamentos com data entre `from` e `to` (inclusive). */
+  listBetween(userId: string, from: Date, to: Date): Promise<TransactionRecord[]>;
+  /** Média diária de gasto variável nos `days` dias anteriores a `before`. */
+  averageDailyExpense(userId: string, before: Date, days: number): Promise<number>;
 }
 
 export interface BillRepository {
@@ -154,15 +200,15 @@ export interface BillRepository {
     },
   ): Promise<BillRecord>;
   delete(userId: string, id: string): Promise<void>;
-  paymentsForMonth(
-    userId: string,
-    month: MonthRef,
-  ): Promise<Array<{ billId: string; amountCents: number; paidAt: Date }>>;
+  paymentsForMonth(userId: string, month: MonthRef): Promise<BillPaymentRecord[]>;
+  /** Baixas e dispensas a partir da competência `month`. */
+  paymentsSince(userId: string, month: MonthRef): Promise<BillPaymentRecord[]>;
   markPaid(params: {
     userId: string;
     billId: string;
     month: MonthRef;
     amountCents: number;
+    status?: BillPaymentStatus;
   }): Promise<void>;
   markUnpaid(userId: string, billId: string, month: MonthRef): Promise<void>;
 }
@@ -225,10 +271,47 @@ export interface GoalRepository {
   ): Promise<GoalRecord>;
   delete(userId: string, id: string): Promise<void>;
   addDeposit(userId: string, goalId: string, amountCents: number): Promise<GoalRecord>;
+  depositsSince(userId: string, since: Date): Promise<GoalDepositRecord[]>;
   clearFeatured(userId: string, exceptGoalId: string): Promise<void>;
 }
 
 export interface SettingsRepository {
   get(userId: string): Promise<SettingsRecord>;
   update(userId: string, data: Partial<SettingsRecord>): Promise<SettingsRecord>;
+}
+
+export interface CardRepository {
+  listByUser(userId: string): Promise<CardRecord[]>;
+  findById(userId: string, id: string): Promise<CardRecord | null>;
+  create(data: {
+    userId: string;
+    name: string;
+    closingDay: number;
+    dueDay: number;
+    limitCents: number | null;
+  }): Promise<CardRecord>;
+  update(
+    userId: string,
+    id: string,
+    data: {
+      name?: string;
+      closingDay?: number;
+      dueDay?: number;
+      limitCents?: number | null;
+      active?: boolean;
+    },
+  ): Promise<CardRecord>;
+  delete(userId: string, id: string): Promise<void>;
+  listPurchases(userId: string, cardId?: string): Promise<CardPurchaseRecord[]>;
+  findPurchase(userId: string, id: string): Promise<CardPurchaseRecord | null>;
+  createPurchase(data: {
+    userId: string;
+    cardId: string;
+    categoryId: string;
+    amountCents: number;
+    installments: number;
+    purchasedOn: Date;
+    note: string | null;
+  }): Promise<CardPurchaseRecord>;
+  deletePurchase(userId: string, id: string): Promise<void>;
 }

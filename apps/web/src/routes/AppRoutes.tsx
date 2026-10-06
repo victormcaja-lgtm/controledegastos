@@ -18,6 +18,12 @@ import { DebtsPage } from '@/pages/DebtsPage';
 import { GoalsPage } from '@/pages/GoalsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { UsersPage } from '@/pages/admin/UsersPage';
+import { CashflowHomePage } from '@/pages/CashflowHomePage';
+import { DiaryPage } from '@/pages/DiaryPage';
+import { SimulatePage } from '@/pages/SimulatePage';
+import { CardsPage } from '@/pages/CardsPage';
+import { ResultPage } from '@/pages/ResultPage';
+import { features } from '@/config/env';
 
 /** Só entra quem tem sessão. Guarda a rota pretendida para voltar depois do login. */
 function RequireAuth() {
@@ -78,7 +84,10 @@ export function AppRoutes() {
         <Route path="/trocar-senha" element={<ChangePasswordPage />} />
 
         <Route element={<AppShell />}>
-          <Route index element={<HomePage />} />
+          <Route
+            index
+            element={features.saldoFuturo ? <CashflowHomePage /> : <HomePage />}
+          />
           <Route path="/lancar" element={<AddEntryPage />} />
           <Route path="/lista" element={<ListPage />} />
           <Route path="/contas" element={<BillsPage />} />
@@ -86,6 +95,15 @@ export function AppRoutes() {
           <Route path="/parcelas" element={<DebtsPage />} />
           <Route path="/guardar" element={<GoalsPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
+          {features.saldoFuturo && (
+            <>
+              <Route path="/mes" element={<HomePage />} />
+              <Route path="/diario" element={<DiaryPage />} />
+              <Route path="/posso-comprar" element={<SimulatePage />} />
+              <Route path="/cartoes" element={<CardsPage />} />
+              <Route path="/resultado" element={<ResultPage />} />
+            </>
+          )}
         </Route>
 
         <Route element={<RequireAdmin />}>

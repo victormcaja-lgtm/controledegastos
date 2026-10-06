@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
+  ConvertDebtRequest,
+  CreateCardPurchaseRequest,
+  CreateCardRequest,
   CreateBillRequest,
   CreateCategoryRequest,
   CreateDebtRequest,
@@ -10,7 +13,9 @@ import type {
   ListTransactionsQuery,
   ListUsersQuery,
   MonthRef,
+  SimulatePurchaseRequest,
   UpdateBillRequest,
+  UpdateCardRequest,
   UpdateCategoryRequest,
   UpdateDebtRequest,
   UpdateGoalRequest,
@@ -19,6 +24,7 @@ import type {
   UpdateUserRequest,
 } from '@grana/shared';
 import { granaGateway } from '@/infra/http/grana.gateway';
+import { localTodayISO } from '@/application/dates';
 
 /**
  * Chaves de cache centralizadas.
@@ -37,6 +43,10 @@ export const queryKeys = {
   debts: () => ['debts'] as const,
   goals: () => ['goals'] as const,
   settings: () => ['settings'] as const,
+  cashflow: (from: string, to: string, today: string) => ['cashflow', from, to, today] as const,
+  overdueBills: (today: string) => ['overdue', today] as const,
+  cards: (today: string) => ['cards', today] as const,
+  invoice: (cardId: string, month: MonthRef | undefined) => ['invoice', cardId, month] as const,
   users: (query: Partial<ListUsersQuery>) => ['admin', 'users', query] as const,
 };
 
@@ -46,6 +56,10 @@ function invalidateMoney(client: QueryClient): void {
   void client.invalidateQueries({ queryKey: ['transactions'] });
   void client.invalidateQueries({ queryKey: ['report'] });
   void client.invalidateQueries({ queryKey: ['bills'] });
+  void client.invalidateQueries({ queryKey: ['cashflow'] });
+  void client.invalidateQueries({ queryKey: ['overdue'] });
+  void client.invalidateQueries({ queryKey: ['cards'] });
+  void client.invalidateQueries({ queryKey: ['invoice'] });
 }
 
 /* ────────────────────────────── Consultas ───────────────────────────── */
@@ -101,6 +115,38 @@ export function useGoals() {
 
 export function useSettings() {
   return useQuery({ queryKey: queryKeys.settings(), queryFn: () => granaGateway.settings() });
+}
+
+/** Saldo dia a dia entre `from` e `to`, com o "hoje" do aparelho. */
+export function useCashflow(from: string, to: string, enabled = true) {
+  const today = localTodayISO();
+  return useQuery({
+    queryKey: queryKeys.cashflow(from, to, today),
+    queryFn: () => granaGateway.cashflow({ from, to, today }),
+    placeholderData: (previous) => previous,
+    enabled,
+  });
+}
+
+export function useOverdueBills() {
+  const today = localTodayISO();
+  return useQuery({
+    queryKey: queryKeys.overdueBills(today),
+    queryFn: () => granaGateway.overdueBills(today),
+  });
+}
+
+export function useCards() {
+  const today = localTodayISO();
+  return useQuery({ queryKey: queryKeys.cards(today), queryFn: () => granaGateway.listCards(today) });
+}
+
+export function useInvoice(cardId: string | null, month?: MonthRef) {
+  return useQuery({
+    queryKey: queryKeys.invoice(cardId ?? '', month),
+    queryFn: () => granaGateway.invoice(cardId!, month),
+    enabled: cardId !== null,
+  });
 }
 
 export function useUsers(query: Partial<ListUsersQuery>) {
@@ -166,6 +212,89 @@ export function useSetBillPayment(month: MonthRef) {
     mutationFn: ({ id, paid }: { id: string; paid: boolean }) =>
       granaGateway.setBillPayment(id, month, paid),
     onSuccess: () => invalidateMoney(client),
+  });
+}
+
+/** Baixa ou dispensa de qualquer competência — usada nas contas em atraso. */
+export function useSettleBill() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      month,
+      waived = false,
+      amountCents,
+    }: {
+      id: string;
+      month: MonthRef;
+      waived?: boolean;
+      amountCents?: number;
+    }) =>
+      granaGateway.setBillPayment(id, month, !waived, {
+        ...(waived ? { waived: true } : {}),
+        ...(amountCents ? { amountCents } : {}),
+      }),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useSimulatePurchase() {
+  return useMutation({
+    mutationFn: (data: SimulatePurchaseRequest) => granaGateway.simulatePurchase(data),
+  });
+}
+
+export function useCreateCard() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateCardRequest) => granaGateway.createCard(data),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useUpdateCard() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateCardRequest }) =>
+      granaGateway.updateCard(id, data),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useDeleteCard() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => granaGateway.deleteCard(id),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useCreateCardPurchase() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cardId, data }: { cardId: string; data: CreateCardPurchaseRequest }) =>
+      granaGateway.createCardPurchase(cardId, data),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useDeleteCardPurchase() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => granaGateway.deleteCardPurchase(id),
+    onSuccess: () => invalidateMoney(client),
+  });
+}
+
+export function useConvertDebt() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ConvertDebtRequest }) =>
+      granaGateway.convertDebt(id, data),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.debts() });
+      invalidateMoney(client);
+    },
   });
 }
 
@@ -283,7 +412,10 @@ export function useDepositToGoal() {
   return useMutation({
     mutationFn: ({ id, amountCents }: { id: string; amountCents: number }) =>
       granaGateway.depositToGoal(id, amountCents),
-    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.goals() }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.goals() });
+      invalidateMoney(client);
+    },
   });
 }
 
@@ -291,7 +423,10 @@ export function useUpdateSettings() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (data: UpdateSettingsRequest) => granaGateway.updateSettings(data),
-    onSuccess: (settings) => client.setQueryData(queryKeys.settings(), settings),
+    onSuccess: (settings) => {
+      client.setQueryData(queryKeys.settings(), settings);
+      invalidateMoney(client);
+    },
   });
 }
 

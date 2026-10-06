@@ -44,7 +44,7 @@ export class GetBillsOverviewUseCase {
       .filter((bill) => bill.paid)
       .reduce((sum, bill) => sum + bill.amountCents, 0);
     const dueCents = active
-      .filter((bill) => !bill.paid)
+      .filter((bill) => !bill.paid && !bill.waived)
       .reduce((sum, bill) => sum + bill.amountCents, 0);
 
     return {
@@ -78,7 +78,7 @@ function buildCalendar(month: MonthRef, bills: BillDTO[]) {
       day,
       isToday: isCurrentMonth && today.getUTCDate() === day,
       hasBill: dayBills.length > 0,
-      allPaid: dayBills.length > 0 && dayBills.every((bill) => bill.paid),
+      allPaid: dayBills.length > 0 && dayBills.every((bill) => bill.paid || bill.waived),
     });
   }
 
@@ -157,6 +157,9 @@ export class DeleteBillUseCase {
 /**
  * Dar baixa numa conta fixa é por competência, não por conta.
  * "Aluguel de setembro pago" não diz nada sobre outubro.
+ *
+ * Também serve para contas atrasadas: pagar setembro em outubro grava a baixa
+ * na competência de setembro, com a data de hoje — e ela sai da lista de atraso.
  */
 export class SetBillPaymentUseCase {
   constructor(private readonly bills: BillRepository) {}
@@ -164,17 +167,25 @@ export class SetBillPaymentUseCase {
   async execute(
     userId: string,
     billId: string,
-    input: { month: MonthRef; paid: boolean },
+    input: { month: MonthRef; paid: boolean; waived?: boolean | undefined; amountCents?: number | undefined },
   ): Promise<BillDTO> {
     const bill = await this.bills.findById(userId, billId);
     if (!bill) throw new NotFoundError('Conta');
 
-    if (input.paid) {
+    if (input.waived) {
       await this.bills.markPaid({
         userId,
         billId,
         month: input.month,
         amountCents: bill.amountCents,
+        status: 'WAIVED',
+      });
+    } else if (input.paid) {
+      await this.bills.markPaid({
+        userId,
+        billId,
+        month: input.month,
+        amountCents: input.amountCents ?? bill.amountCents,
       });
     } else {
       await this.bills.markUnpaid(userId, billId, input.month);

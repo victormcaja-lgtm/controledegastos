@@ -21,3 +21,12 @@ export const env = {
   apiUrl: parsed.data.VITE_API_URL.replace(/\/$/, ''),
   isDev: import.meta.env.DEV,
 };
+
+/**
+ * Chaves de funcionalidade. Ligadas por padrão; para desligar em produção sem
+ * reverter código, defina a variável como `false` na Vercel e faça redeploy.
+ */
+export const features = {
+  /** Saldo futuro: Home com saldo contínuo, Diário, Posso comprar?, Cartões e Resultado. */
+  saldoFuturo: import.meta.env.VITE_FEATURE_SALDO_FUTURO !== 'false',
+};

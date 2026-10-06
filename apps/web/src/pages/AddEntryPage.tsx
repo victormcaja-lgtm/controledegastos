@@ -8,10 +8,13 @@ import { Input } from '@/components/atoms/Input';
 import { Spinner } from '@/components/atoms/Spinner';
 import { Keypad } from '@/components/organisms/Keypad';
 import {
+  useCards,
   useCategories,
+  useCreateCardPurchase,
   useCreateCategory,
   useCreateTransaction,
 } from '@/application/hooks/queries';
+import { features } from '@/config/env';
 import { useToast } from '@/application/toast/ToastProvider';
 import { ApiRequestError } from '@/infra/http/api-client';
 
@@ -36,6 +39,9 @@ export function AddEntryPage() {
   const { data: categories, isPending } = useCategories();
   const createTransaction = useCreateTransaction();
   const createCategory = useCreateCategory();
+  const createPurchase = useCreateCardPurchase();
+  const { data: cards } = useCards();
+  const activeCards = features.saldoFuturo ? (cards ?? []).filter((card) => card.active) : [];
 
   const [type, setType] = useState<EntryType>('EXPENSE');
   const [digits, setDigits] = useState('');
@@ -46,6 +52,10 @@ export function AddEntryPage() {
   });
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  /** `null` = saiu da conta; senão, o id do cartão. */
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [installments, setInstallments] = useState(1);
+  const payingWithCard = type === 'EXPENSE' && cardId !== null;
 
   const visibleCategories = useMemo<CategoryDTO[]>(
     () => (categories ?? []).filter((category) => category.kind === type && !category.archivedAt),
@@ -92,6 +102,24 @@ export function AddEntryPage() {
     }
 
     try {
+      if (payingWithCard) {
+        // No cartão, o dinheiro sai na fatura — não vira lançamento do dia.
+        await createPurchase.mutateAsync({
+          cardId,
+          data: {
+            amountCents: cents,
+            installments,
+            purchasedOn: todayISO(),
+            categoryId: selectedId,
+            ...(note.trim() ? { note: note.trim() } : {}),
+          },
+        });
+        show(
+          `Compra de ${formatMoney(cents)} no cartão${installments > 1 ? ` em ${installments}x` : ''} salva`,
+        );
+        navigate('/');
+        return;
+      }
       await createTransaction.mutateAsync({
         type,
         amountCents: cents,
@@ -183,6 +211,38 @@ export function AddEntryPage() {
         </div>
       )}
 
+      {type === 'EXPENSE' && activeCards.length > 0 && (
+        <div className="px-5 pt-3">
+          <p className="mb-1.5 text-[12px] font-medium text-muted">Pagou com</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip label="Conta / Pix" selected={cardId === null} onClick={() => setCardId(null)} />
+            {activeCards.map((card) => (
+              <Chip
+                key={card.id}
+                label={card.name}
+                selected={cardId === card.id}
+                onClick={() => setCardId(card.id)}
+              />
+            ))}
+            {payingWithCard && (
+              <label className="ml-auto flex items-center gap-2 text-[13px] text-soft">
+                Parcelas
+                <Input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={installments}
+                  onChange={(event) =>
+                    setInstallments(Math.min(48, Math.max(1, Number(event.target.value) || 1)))
+                  }
+                  className="h-9 w-16"
+                />
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="px-5 pt-3">
         <Input
           value={note}
@@ -200,7 +260,7 @@ export function AddEntryPage() {
           size="lg"
           fullWidth
           disabled={!cents}
-          loading={createTransaction.isPending}
+          loading={createTransaction.isPending || createPurchase.isPending}
           onClick={() => void save()}
         >
           {cents ? `Salvar ${formatMoney(cents)}` : 'Digite o valor'}

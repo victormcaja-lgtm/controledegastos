@@ -1,3 +1,5 @@
+import { features } from '@/config/env';
+
 export interface NavItem {
   to: string;
   label: string;
@@ -10,13 +12,23 @@ export interface NavItem {
 /** Itens da navegação principal — compartilhados pela barra inferior (celular) e pelo topo (desktop). */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Início', glyph: '◍', end: true },
-  { to: '/lista', label: 'Lista', glyph: '≡', end: false },
+  features.saldoFuturo
+    ? { to: '/diario', label: 'Diário', glyph: '≡', end: false }
+    : { to: '/lista', label: 'Lista', glyph: '≡', end: false },
   { to: '/lancar', label: 'Lançar', glyph: '+', end: false, primary: true },
   { to: '/contas', label: 'Contas', glyph: '▤', end: false },
   { to: '/mais', label: 'Mais', glyph: '◔', end: false },
 ];
 
-const MORE_SECTION_PATHS = ['/mais', '/parcelas', '/guardar', '/ajustes'];
+const MORE_SECTION_PATHS = [
+  '/mais',
+  '/parcelas',
+  '/guardar',
+  '/ajustes',
+  '/cartoes',
+  '/resultado',
+  '/posso-comprar',
+];
 
 /** "Mais" agrupa outras rotas (parcelas, guardar, ajustes) sob a mesma aba ativa. */
 export function isMoreSection(pathname: string): boolean {

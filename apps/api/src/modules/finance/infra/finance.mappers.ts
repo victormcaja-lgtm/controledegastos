@@ -3,6 +3,7 @@ import {
   percentOf,
   toMonthRef,
   type BillDTO,
+  type CardPurchaseDTO,
   type CategoryDTO,
   type DebtDTO,
   type GoalDTO,
@@ -12,6 +13,7 @@ import {
 } from '@grana/shared';
 import type {
   BillRecord,
+  CardPurchaseRecord,
   CategoryRecord,
   DebtRecord,
   GoalRecord,
@@ -56,7 +58,7 @@ export function toTransactionDTO(record: TransactionRecord): TransactionDTO {
 export function toBillDTO(
   record: BillRecord,
   month: MonthRef,
-  payment: { paidAt: Date } | undefined,
+  payment: { paidAt: Date; status: 'PAID' | 'WAIVED' } | undefined,
 ): BillDTO {
   const schedule = { startMonth: toMonthRef(record.startMonth), totalInstallments: record.totalInstallments };
 
@@ -72,8 +74,9 @@ export function toBillDTO(
       color: record.category.color,
       kind: record.category.kind,
     },
-    paid: payment !== undefined,
-    paidAt: payment ? payment.paidAt.toISOString() : null,
+    paid: payment?.status === 'PAID',
+    waived: payment?.status === 'WAIVED',
+    paidAt: payment?.status === 'PAID' ? payment.paidAt.toISOString() : null,
     dueDate: isoDateFromMonthDay(month, record.dueDay),
     totalInstallments: record.totalInstallments,
     installmentNumber: billInstallmentNumber(schedule, month),
@@ -121,5 +124,22 @@ export function toGoalDTO(record: GoalRecord): GoalDTO {
       amountCents: deposit.amountCents,
       createdAt: deposit.createdAt.toISOString(),
     })),
+  };
+}
+
+export function toCardPurchaseDTO(record: CardPurchaseRecord): CardPurchaseDTO {
+  return {
+    id: record.id,
+    cardId: record.cardId,
+    amountCents: record.amountCents,
+    installments: record.installments,
+    purchasedOn: toISODate(record.purchasedOn),
+    note: record.note,
+    category: {
+      id: record.category.id,
+      name: record.category.name,
+      color: record.category.color,
+      kind: record.category.kind,
+    },
   };
 }

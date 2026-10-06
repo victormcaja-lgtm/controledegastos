@@ -5,3 +5,4 @@ export * from './primitives.js';
 export * from './contracts/auth.contract.js';
 export * from './contracts/user.contract.js';
 export * from './contracts/finance.contract.js';
+export * from './contracts/cashflow.contract.js';

@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import type { CategoryKind, SettingsDTO } from '@grana/shared';
+import {
+  formatMoney,
+  parseBRLToCents,
+  type BooleanSettingKey,
+  type CategoryKind,
+  type SettingsDTO,
+} from '@grana/shared';
 import { Card } from '@/components/atoms/Card';
 import { Button } from '@/components/atoms/Button';
 import { Input } from '@/components/atoms/Input';
@@ -26,8 +32,10 @@ import {
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useToast } from '@/application/toast/ToastProvider';
 import { ApiRequestError } from '@/infra/http/api-client';
+import { localTodayISO } from '@/application/dates';
+import { features } from '@/config/env';
 
-const TOGGLES: Array<{ key: keyof SettingsDTO; title: string; description: string }> = [
+const TOGGLES: Array<{ key: BooleanSettingKey; title: string; description: string }> = [
   {
     key: 'overspendAlerts',
     title: 'Avisar quando eu estourar',
@@ -278,6 +286,8 @@ export function SettingsPage() {
         )}
       </Card>
 
+      {features.saldoFuturo && <OpeningBalanceCard settings={settings} />}
+
       <Card className="mt-3.5">
         <SectionHeader title="Preferências" />
         <ul className="mt-2">
@@ -363,5 +373,75 @@ export function SettingsPage() {
         onCancel={() => setCategoryToDelete(null)}
       />
     </div>
+  );
+}
+
+/** Ponto de partida do saldo futuro e o gasto médio usado na previsão. */
+function OpeningBalanceCard({ settings }: { settings: SettingsDTO }) {
+  const { show, showError } = useToast();
+  const updateSettings = useUpdateSettings();
+  const toReais = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
+
+  const { register, handleSubmit } = useForm<{ saldo: string; data: string; media: string }>({
+    defaultValues: {
+      saldo: toReais(settings.openingBalanceCents),
+      data: settings.openingDate ?? localTodayISO(),
+      media: settings.dailyBudgetCents === null ? '' : toReais(settings.dailyBudgetCents),
+    },
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    const openingBalanceCents = parseBRLToCents(values.saldo);
+    const dailyBudgetCents = values.media.trim() ? parseBRLToCents(values.media) : null;
+    if (openingBalanceCents === null || (values.media.trim() && dailyBudgetCents === null)) {
+      showError('Confira os valores — use o formato 1.250,00.');
+      return;
+    }
+    try {
+      await updateSettings.mutateAsync({
+        openingBalanceCents,
+        openingDate: values.data,
+        dailyBudgetCents: dailyBudgetCents === null ? null : Math.max(0, dailyBudgetCents),
+      });
+      show('Saldo atualizado');
+    } catch (error) {
+      showError(error instanceof ApiRequestError ? error.message : 'Não deu para salvar.');
+    }
+  });
+
+  return (
+    <Card className="mt-3.5">
+      <SectionHeader
+        title="Saldo futuro"
+        aside={
+          settings.openingDate
+            ? `desde ${settings.openingDate.split('-').reverse().join('/')}`
+            : 'não configurado'
+        }
+      />
+      <p className="mt-1 text-[12.5px] leading-relaxed text-soft">
+        Tudo o que aconteceu antes dessa data já está dentro do saldo. Se o saldo do app se afastar
+        do banco, informe o valor de hoje para recomeçar daqui.
+      </p>
+      <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-3">
+        <div className="flex gap-3">
+          <FormField label="Saldo (R$)" className="flex-1">
+            <Input inputMode="decimal" {...register('saldo', { required: true })} />
+          </FormField>
+          <FormField label="No início do dia" className="flex-1">
+            <Input type="date" max={localTodayISO()} {...register('data', { required: true })} />
+          </FormField>
+        </div>
+        <FormField
+          label="Gasto médio por dia (R$)"
+          hint={`Deixe vazio para calcular pelos seus lançamentos dos últimos 90 dias. Ex.: ${formatMoney(5000)}.`}
+        >
+          <Input inputMode="decimal" placeholder="automático" {...register('media')} />
+        </FormField>
+        <Button type="submit" fullWidth loading={updateSettings.isPending}>
+          Salvar saldo
+        </Button>
+      </form>
+    </Card>
   );
 }

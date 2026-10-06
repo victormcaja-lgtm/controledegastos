@@ -187,9 +187,10 @@ Se vier `database: up`, a API subiu **e** está falando com o Postgres.
 
 3. **Environment Variables**:
 
-| Nome           | Valor                            | Ambientes                        |
-| -------------- | -------------------------------- | -------------------------------- |
-| `VITE_API_URL` | `https://SEU-APP.up.railway.app` | Production, Preview, Development |
+| Nome                        | Valor                                           | Ambientes                        |
+| --------------------------- | ----------------------------------------------- | -------------------------------- |
+| `VITE_API_URL`              | `https://SEU-APP.up.railway.app`                | Production, Preview, Development |
+| `VITE_FEATURE_SALDO_FUTURO` | `true` (padrão; `false` volta às telas antigas) | Production, Preview, Development |
 
 4. **Deploy**. Anote a URL final: `https://seu-projeto.vercel.app`.
 

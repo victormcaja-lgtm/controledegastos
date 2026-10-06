@@ -1,6 +1,18 @@
 import type {
   AuthenticatedUser,
   BillDTO,
+  CardDTO,
+  CardPurchaseDTO,
+  Cashflow,
+  CashflowQuery,
+  ConvertDebtRequest,
+  CreateCardPurchaseRequest,
+  CreateCardRequest,
+  InvoiceDetail,
+  OverdueBill,
+  SimulatePurchaseRequest,
+  SimulationResult,
+  UpdateCardRequest,
   BillsOverview,
   CategoryDTO,
   CategoryReport,
@@ -95,8 +107,31 @@ export const granaGateway = {
   updateBill: (id: string, data: UpdateBillRequest, month: MonthRef) =>
     api.patch<BillDTO>(`/api/bills/${id}${toQuery({ month })}`, data),
   deleteBill: (id: string) => api.delete<void>(`/api/bills/${id}`),
-  setBillPayment: (id: string, month: MonthRef, paid: boolean) =>
-    api.put<BillDTO>(`/api/bills/${id}/payment`, { month, paid }),
+  setBillPayment: (
+    id: string,
+    month: MonthRef,
+    paid: boolean,
+    extra: { waived?: boolean; amountCents?: number } = {},
+  ) => api.put<BillDTO>(`/api/bills/${id}/payment`, { month, paid, ...extra }),
+  overdueBills: (today: string) =>
+    api.get<OverdueBill[]>(`/api/bills/overdue${toQuery({ today })}`),
+
+  /* ── Saldo futuro ── */
+  cashflow: (query: CashflowQuery) =>
+    api.get<Cashflow>(`/api/cashflow${toQuery(query as Record<string, string>)}`),
+  simulatePurchase: (data: SimulatePurchaseRequest) =>
+    api.post<SimulationResult>('/api/cashflow/simulate', data),
+
+  /* ── Cartões ── */
+  listCards: (today: string) => api.get<CardDTO[]>(`/api/cards${toQuery({ today })}`),
+  createCard: (data: CreateCardRequest) => api.post<CardDTO>('/api/cards', data),
+  updateCard: (id: string, data: UpdateCardRequest) => api.patch<CardDTO>(`/api/cards/${id}`, data),
+  deleteCard: (id: string) => api.delete<void>(`/api/cards/${id}`),
+  invoice: (id: string, month?: MonthRef) =>
+    api.get<InvoiceDetail>(`/api/cards/${id}/invoice${toQuery(month ? { month } : {})}`),
+  createCardPurchase: (cardId: string, data: CreateCardPurchaseRequest) =>
+    api.post<CardPurchaseDTO>(`/api/cards/${cardId}/purchases`, data),
+  deleteCardPurchase: (id: string) => api.delete<void>(`/api/card-purchases/${id}`),
 
   /* ── Entradas ── */
   listIncomes: () => api.get<IncomeDTO[]>('/api/incomes'),
@@ -110,6 +145,8 @@ export const granaGateway = {
   createDebt: (data: CreateDebtRequest) => api.post<DebtDTO>('/api/debts', data),
   updateDebt: (id: string, data: UpdateDebtRequest) => api.patch<DebtDTO>(`/api/debts/${id}`, data),
   deleteDebt: (id: string) => api.delete<void>(`/api/debts/${id}`),
+  convertDebt: (id: string, data: ConvertDebtRequest) =>
+    api.post<BillDTO>(`/api/debts/${id}/convert`, data),
 
   /* ── Metas ── */
   listGoals: () => api.get<GoalDTO[]>('/api/goals'),

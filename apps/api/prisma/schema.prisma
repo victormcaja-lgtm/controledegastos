@@ -74,6 +74,8 @@ model User {
   incomes       Income[]
   debts         Debt[]
   goals         Goal[]
+  cards         Card[]
+  cardPurchases CardPurchase[]
   settings      UserSettings?
   auditLogs     AuditLog[]     @relation("AuditActor")
 
@@ -120,13 +122,20 @@ model AuditLog {
 }
 
 model UserSettings {
-  userId              String  @id
-  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  overspendAlerts     Boolean @default(true)
-  weeklySummary       Boolean @default(true)
-  roundCents          Boolean @default(false)
-  autoDarkMode        Boolean @default(false)
-  showDailyAllowance  Boolean @default(true)
+  userId             String  @id
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overspendAlerts    Boolean @default(true)
+  weeklySummary      Boolean @default(true)
+  roundCents         Boolean @default(false)
+  autoDarkMode       Boolean @default(false)
+  showDailyAllowance Boolean @default(true)
+
+  /// Saldo futuro: saldo na conta no INÍCIO do dia `openingDate` (pode ser negativo).
+  openingBalanceCents Int       @default(0)
+  /// `null` = saldo futuro ainda não configurado.
+  openingDate         DateTime? @db.Date
+  /// Gasto médio diário definido pelo usuário; `null` = calcular pelo histórico.
+  dailyBudgetCents    Int?
 
   updatedAt DateTime @updatedAt
 
@@ -147,8 +156,9 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  transactions Transaction[]
-  bills        Bill[]
+  transactions  Transaction[]
+  bills         Bill[]
+  cardPurchases CardPurchase[]
 
   @@unique([userId, name, kind])
   @@index([userId, kind])
@@ -177,15 +187,15 @@ model Transaction {
 }
 
 model Bill {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  name        String   @db.VarChar(60)
-  amountCents Int
-  dueDay      Int
-  active      Boolean  @default(true)
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId        String
+  category          Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name              String   @db.VarChar(60)
+  amountCents       Int
+  dueDay            Int
+  active            Boolean  @default(true)
   /// Competência a partir da qual a conta vigora (o mês em que foi criada).
   startMonth        DateTime @db.Date
   /// `null` = recorrente sem fim (aluguel, assinatura...); do contrário, quantas parcelas.
@@ -203,15 +213,22 @@ model Bill {
 /// Uma conta fixa é um modelo recorrente; o pagamento é por COMPETÊNCIA.
 /// Guardar isso numa tabela separada é o que permite navegar entre meses
 /// sem perder o histórico (o protótipo usava um booleano só, que não fecha).
+enum BillPaymentStatus {
+  PAID
+  /// "Não vou pagar": competência dispensada (negociada, cancelada...).
+  WAIVED
+}
+
 model BillPayment {
-  id             String   @id @default(uuid())
+  id             String            @id @default(uuid())
   billId         String
-  bill           Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  bill           Bill              @relation(fields: [billId], references: [id], onDelete: Cascade)
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  referenceMonth DateTime @db.Date
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceMonth DateTime          @db.Date
   amountCents    Int
-  paidAt         DateTime @default(now())
+  paidAt         DateTime          @default(now())
+  status         BillPaymentStatus @default(PAID)
 
   @@unique([billId, referenceMonth])
   @@index([userId, referenceMonth])
@@ -277,4 +294,45 @@ model GoalDeposit {
 
   @@index([goalId])
   @@map("goal_deposits")
+}
+
+/// Cartão de crédito. A fatura não é tabela: é calculada a partir das compras.
+model Card {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String  @db.VarChar(60)
+  closingDay Int
+  dueDay     Int
+  limitCents Int?
+  active     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases CardPurchase[]
+
+  @@index([userId])
+  @@map("cards")
+}
+
+/// Compra no cartão. `amountCents` é o TOTAL; as parcelas são calculadas.
+model CardPurchase {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId       String
+  card         Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amountCents  Int
+  installments Int      @default(1)
+  purchasedOn  DateTime @db.Date
+  note         String?  @db.VarChar(140)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purchasedOn])
+  @@index([cardId])
+  @@map("card_purchases")
 }
