@@ -11,10 +11,14 @@ import {
   type SettingsDTO,
   type UpdateSettingsRequest,
 } from '@grana/shared';
+import { BusinessRuleError } from '../../../shared/domain/errors.js';
 import { calculateBudget, isBillFinished } from '../domain/budget.calculator.js';
+import { installmentsOf } from '../domain/card.calculator.js';
+import { toISODate } from '../infra/finance.mappers.js';
 import type {
   BillRecord,
   BillRepository,
+  CardRepository,
   IncomeRepository,
   SettingsRepository,
   TransactionRepository,
@@ -48,8 +52,16 @@ export class GetDashboardSummaryUseCase {
       this.transactions.averageMonthlyExpense(userId, 3),
     ]);
 
-    const activeBills = billsInEffect(allActiveBills, month);
-    const paidBillIds = new Set(payments.map((payment) => payment.billId));
+    // "Não vou pagar" tira a conta do mês: nem gasto, nem a pagar.
+    const waivedBillIds = new Set(
+      payments.filter((payment) => payment.status === 'WAIVED').map((payment) => payment.billId),
+    );
+    const activeBills = billsInEffect(allActiveBills, month).filter(
+      (bill) => !waivedBillIds.has(bill.id),
+    );
+    const paidBillIds = new Set(
+      payments.filter((payment) => payment.status === 'PAID').map((payment) => payment.billId),
+    );
 
     const budget = calculateBudget({
       month,
@@ -110,14 +122,18 @@ export class GetCategoryReportUseCase {
   constructor(
     private readonly transactions: TransactionRepository,
     private readonly bills: BillRepository,
+    private readonly cards: CardRepository,
   ) {}
 
   async execute(userId: string, month: MonthRef = currentMonthRef()): Promise<CategoryReport> {
-    const [monthTransactions, allActiveBills, previousTransactions] = await Promise.all([
-      this.transactions.listForMonth(userId, month),
-      this.bills.listActive(userId),
-      this.transactions.listForMonth(userId, previousMonth(month)),
-    ]);
+    const [monthTransactions, allActiveBills, previousTransactions, cards, purchases] =
+      await Promise.all([
+        this.transactions.listForMonth(userId, month),
+        this.bills.listActive(userId),
+        this.transactions.listForMonth(userId, previousMonth(month)),
+        this.cards.listByUser(userId),
+        this.cards.listPurchases(userId),
+      ]);
     const activeBills = billsInEffect(allActiveBills, month);
 
     const totals = new Map<string, { name: string; color: string; totalCents: number }>();
@@ -139,6 +155,27 @@ export class GetCategoryReportUseCase {
     }
     for (const bill of activeBills) {
       add(bill.category.id, bill.category.name, bill.category.color, bill.amountCents);
+    }
+    // Compras no cartão entram pelo mês em que a parcela vence (quando o dinheiro sai).
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+    for (const purchase of purchases) {
+      const card = cardById.get(purchase.cardId);
+      if (!card) continue;
+      const installments = installmentsOf(card, {
+        id: purchase.id,
+        amountCents: purchase.amountCents,
+        installments: purchase.installments,
+        purchasedOn: toISODate(purchase.purchasedOn),
+      });
+      for (const installment of installments) {
+        if (installment.dueDate.slice(0, 7) !== month) continue;
+        add(
+          purchase.category.id,
+          purchase.category.name,
+          purchase.category.color,
+          installment.amountCents,
+        );
+      }
     }
 
     const sorted = [...totals.entries()].sort((a, b) => b[1].totalCents - a[1].totalCents);
@@ -221,6 +258,11 @@ export class UpdateSettingsUseCase {
   constructor(private readonly settings: SettingsRepository) {}
 
   async execute(userId: string, data: UpdateSettingsRequest): Promise<SettingsDTO> {
+    // Um dia de folga cobre quem está num fuso à frente do UTC do servidor.
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (data.openingDate && data.openingDate > tomorrow) {
+      throw new BusinessRuleError('A data do saldo inicial não pode ser no futuro.');
+    }
     return this.settings.update(userId, data);
   }
 }

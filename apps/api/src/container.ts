@@ -27,6 +27,7 @@ import {
 
 import {
   PrismaBillRepository,
+  PrismaCardRepository,
   PrismaCategoryRepository,
   PrismaDebtRepository,
   PrismaGoalRepository,
@@ -62,6 +63,22 @@ import {
   UpdateIncomeUseCase,
 } from './modules/finance/application/incomes.usecases.js';
 import {
+  CashflowInputLoader,
+  GetCashflowUseCase,
+  GetOverdueBillsUseCase,
+  SimulatePurchaseUseCase,
+} from './modules/finance/application/cashflow.usecases.js';
+import {
+  CreateCardPurchaseUseCase,
+  CreateCardUseCase,
+  DeleteCardPurchaseUseCase,
+  DeleteCardUseCase,
+  GetInvoiceUseCase,
+  ListCardsUseCase,
+  UpdateCardUseCase,
+} from './modules/finance/application/cards.usecases.js';
+import {
+  ConvertDebtToBillUseCase,
   CreateDebtUseCase,
   DeleteDebtUseCase,
   GetDebtOverviewUseCase,
@@ -109,6 +126,15 @@ export function buildContainer(app: FastifyInstance) {
   const debtRepository = new PrismaDebtRepository(prisma);
   const goalRepository = new PrismaGoalRepository(prisma);
   const settingsRepository = new PrismaSettingsRepository(prisma);
+  const cardRepository = new PrismaCardRepository(prisma);
+  const cashflowLoader = new CashflowInputLoader(
+    transactionRepository,
+    billRepository,
+    incomeRepository,
+    cardRepository,
+    goalRepository,
+    settingsRepository,
+  );
   const workspaceProvisioner = new PrismaWorkspaceProvisioner(prisma);
 
   /* ── Casos de uso ── */
@@ -164,6 +190,7 @@ export function buildContainer(app: FastifyInstance) {
       update: new UpdateBillUseCase(billRepository, categoryRepository),
       remove: new DeleteBillUseCase(billRepository),
       setPayment: new SetBillPaymentUseCase(billRepository),
+      overdue: new GetOverdueBillsUseCase(cashflowLoader),
     },
     incomes: {
       list: new ListIncomesUseCase(incomeRepository),
@@ -176,6 +203,20 @@ export function buildContainer(app: FastifyInstance) {
       create: new CreateDebtUseCase(debtRepository),
       update: new UpdateDebtUseCase(debtRepository),
       remove: new DeleteDebtUseCase(debtRepository),
+      convert: new ConvertDebtToBillUseCase(debtRepository, billRepository, categoryRepository),
+    },
+    cashflow: {
+      get: new GetCashflowUseCase(cashflowLoader),
+      simulate: new SimulatePurchaseUseCase(cashflowLoader),
+    },
+    cards: {
+      list: new ListCardsUseCase(cardRepository),
+      create: new CreateCardUseCase(cardRepository),
+      update: new UpdateCardUseCase(cardRepository),
+      remove: new DeleteCardUseCase(cardRepository),
+      invoice: new GetInvoiceUseCase(cardRepository),
+      createPurchase: new CreateCardPurchaseUseCase(cardRepository, categoryRepository),
+      removePurchase: new DeleteCardPurchaseUseCase(cardRepository),
     },
     goals: {
       list: new ListGoalsUseCase(goalRepository),
@@ -190,7 +231,11 @@ export function buildContainer(app: FastifyInstance) {
         billRepository,
         incomeRepository,
       ),
-      categoryReport: new GetCategoryReportUseCase(transactionRepository, billRepository),
+      categoryReport: new GetCategoryReportUseCase(
+        transactionRepository,
+        billRepository,
+        cardRepository,
+      ),
     },
     settings: {
       get: new GetSettingsUseCase(settingsRepository),

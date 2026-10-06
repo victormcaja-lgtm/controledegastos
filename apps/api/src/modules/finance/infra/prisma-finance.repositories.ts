@@ -1,13 +1,19 @@
 import type { Prisma, PrismaClient } from '../../../shared/infra/database/client.js';
 import { NotFoundError } from '../../../shared/domain/errors.js';
-import { monthEnd, monthStart, type MonthRef } from '@grana/shared';
+import { monthEnd, monthStart, toMonthRef, type MonthRef } from '@grana/shared';
 import type {
+  BillPaymentRecord,
+  BillPaymentStatus,
   BillRecord,
   BillRepository,
+  CardPurchaseRecord,
+  CardRecord,
+  CardRepository,
   CategoryRecord,
   CategoryRepository,
   DebtRecord,
   DebtRepository,
+  GoalDepositRecord,
   GoalRecord,
   GoalRepository,
   IncomeRecord,
@@ -74,11 +80,12 @@ export class PrismaCategoryRepository implements CategoryRepository {
   }
 
   async countUsages(userId: string, id: string) {
-    const [transactions, bills] = await this.db.$transaction([
+    const [transactions, bills, purchases] = await this.db.$transaction([
       this.db.transaction.count({ where: { userId, categoryId: id } }),
       this.db.bill.count({ where: { userId, categoryId: id } }),
+      this.db.cardPurchase.count({ where: { userId, categoryId: id } }),
     ]);
-    return transactions + bills;
+    return transactions + bills + purchases;
   }
 }
 
@@ -195,9 +202,60 @@ export class PrismaTransactionRepository implements TransactionRepository {
 
     return Math.round((aggregate._sum.amountCents ?? 0) / months);
   }
+
+  async listBetween(userId: string, from: Date, to: Date) {
+    const items = await this.db.transaction.findMany({
+      where: { userId, occurredOn: { gte: from, lte: to } },
+      include: { category: { select: CATEGORY_SELECT } },
+      orderBy: [{ occurredOn: 'asc' }, { createdAt: 'asc' }],
+    });
+    return items as unknown as TransactionRecord[];
+  }
+
+  async averageDailyExpense(userId: string, before: Date, days: number): Promise<number> {
+    const since = new Date(before.getTime() - days * 24 * 60 * 60 * 1000);
+    const aggregate = await this.db.transaction.aggregate({
+      where: { userId, type: 'EXPENSE', occurredOn: { gte: since, lt: before } },
+      _sum: { amountCents: true },
+      _min: { occurredOn: true },
+    });
+    const total = aggregate._sum.amountCents ?? 0;
+    const first = aggregate._min.occurredOn;
+    if (!first || total === 0) return 0;
+    // Quem começou a lançar há pouco não pode ter a média diluída por dias vazios.
+    const spanDays = Math.max(
+      7,
+      Math.min(days, Math.ceil((before.getTime() - first.getTime()) / (24 * 60 * 60 * 1000))),
+    );
+    return Math.round(total / spanDays);
+  }
 }
 
 /* ─────────────────────────── Contas fixas ───────────────────────────── */
+
+const PAYMENT_SELECT = {
+  billId: true,
+  referenceMonth: true,
+  status: true,
+  amountCents: true,
+  paidAt: true,
+} as const;
+
+function toPaymentRecord(payment: {
+  billId: string;
+  referenceMonth: Date;
+  status: BillPaymentStatus;
+  amountCents: number;
+  paidAt: Date;
+}): BillPaymentRecord {
+  return {
+    billId: payment.billId,
+    month: toMonthRef(payment.referenceMonth),
+    status: payment.status,
+    amountCents: payment.amountCents,
+    paidAt: payment.paidAt,
+  };
+}
 
 export class PrismaBillRepository implements BillRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -273,16 +331,31 @@ export class PrismaBillRepository implements BillRepository {
     await this.db.bill.deleteMany({ where: { id, userId } });
   }
 
-  async paymentsForMonth(userId: string, month: MonthRef) {
+  async paymentsForMonth(userId: string, month: MonthRef): Promise<BillPaymentRecord[]> {
     const payments = await this.db.billPayment.findMany({
       where: { userId, referenceMonth: monthStart(month) },
-      select: { billId: true, amountCents: true, paidAt: true },
+      select: PAYMENT_SELECT,
     });
-    return payments;
+    return payments.map(toPaymentRecord);
   }
 
-  async markPaid(params: { userId: string; billId: string; month: MonthRef; amountCents: number }) {
+  async paymentsSince(userId: string, month: MonthRef): Promise<BillPaymentRecord[]> {
+    const payments = await this.db.billPayment.findMany({
+      where: { userId, referenceMonth: { gte: monthStart(month) } },
+      select: PAYMENT_SELECT,
+    });
+    return payments.map(toPaymentRecord);
+  }
+
+  async markPaid(params: {
+    userId: string;
+    billId: string;
+    month: MonthRef;
+    amountCents: number;
+    status?: BillPaymentStatus;
+  }) {
     const referenceMonth = monthStart(params.month);
+    const status = params.status ?? 'PAID';
     // upsert torna a operação idempotente: clicar duas vezes não duplica a baixa.
     await this.db.billPayment.upsert({
       where: { billId_referenceMonth: { billId: params.billId, referenceMonth } },
@@ -291,8 +364,9 @@ export class PrismaBillRepository implements BillRepository {
         userId: params.userId,
         referenceMonth,
         amountCents: params.amountCents,
+        status,
       },
-      update: { amountCents: params.amountCents, paidAt: new Date() },
+      update: { amountCents: params.amountCents, paidAt: new Date(), status },
     });
   }
 
@@ -458,6 +532,20 @@ export class PrismaGoalRepository implements GoalRepository {
     return (await this.findById(userId, goalId))!;
   }
 
+  async depositsSince(userId: string, since: Date): Promise<GoalDepositRecord[]> {
+    const deposits = await this.db.goalDeposit.findMany({
+      where: { goal: { userId }, createdAt: { gte: since } },
+      select: { goalId: true, amountCents: true, createdAt: true, goal: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return deposits.map((deposit) => ({
+      goalId: deposit.goalId,
+      goalName: deposit.goal.name,
+      amountCents: deposit.amountCents,
+      createdAt: deposit.createdAt,
+    }));
+  }
+
   async clearFeatured(userId: string, exceptGoalId: string) {
     await this.db.goal.updateMany({
       where: { userId, featured: true, NOT: { id: exceptGoalId } },
@@ -474,7 +562,35 @@ const DEFAULT_SETTINGS: SettingsRecord = {
   roundCents: false,
   autoDarkMode: false,
   showDailyAllowance: true,
+  openingBalanceCents: 0,
+  openingDate: null,
+  dailyBudgetCents: null,
 };
+
+type SettingsRow = Omit<SettingsRecord, 'openingDate'> & { openingDate: Date | null };
+
+function toSettingsRecord(row: SettingsRow): SettingsRecord {
+  return {
+    overspendAlerts: row.overspendAlerts,
+    weeklySummary: row.weeklySummary,
+    roundCents: row.roundCents,
+    autoDarkMode: row.autoDarkMode,
+    showDailyAllowance: row.showDailyAllowance,
+    openingBalanceCents: row.openingBalanceCents,
+    openingDate: row.openingDate ? row.openingDate.toISOString().slice(0, 10) : null,
+    dailyBudgetCents: row.dailyBudgetCents,
+  };
+}
+
+function toSettingsRow(data: Partial<SettingsRecord>) {
+  const { openingDate, ...rest } = data;
+  return {
+    ...rest,
+    ...(openingDate !== undefined
+      ? { openingDate: openingDate === null ? null : new Date(`${openingDate}T00:00:00.000Z`) }
+      : {}),
+  };
+}
 
 export class PrismaSettingsRepository implements SettingsRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -482,27 +598,112 @@ export class PrismaSettingsRepository implements SettingsRepository {
   async get(userId: string): Promise<SettingsRecord> {
     const found = await this.db.userSettings.findUnique({ where: { userId } });
     if (!found) return { ...DEFAULT_SETTINGS };
-    return {
-      overspendAlerts: found.overspendAlerts,
-      weeklySummary: found.weeklySummary,
-      roundCents: found.roundCents,
-      autoDarkMode: found.autoDarkMode,
-      showDailyAllowance: found.showDailyAllowance,
-    };
+    return toSettingsRecord(found);
   }
 
   async update(userId: string, data: Partial<SettingsRecord>): Promise<SettingsRecord> {
     const saved = await this.db.userSettings.upsert({
       where: { userId },
-      create: { userId, ...DEFAULT_SETTINGS, ...data },
-      update: data,
+      create: { userId, ...toSettingsRow({ ...DEFAULT_SETTINGS, ...data }) },
+      update: toSettingsRow(data),
     });
-    return {
-      overspendAlerts: saved.overspendAlerts,
-      weeklySummary: saved.weeklySummary,
-      roundCents: saved.roundCents,
-      autoDarkMode: saved.autoDarkMode,
-      showDailyAllowance: saved.showDailyAllowance,
-    };
+    return toSettingsRecord(saved);
+  }
+}
+
+/* ───────────────────────────── Cartões ──────────────────────────────── */
+
+const CARD_SELECT = {
+  id: true,
+  userId: true,
+  name: true,
+  closingDay: true,
+  dueDay: true,
+  limitCents: true,
+  active: true,
+} as const;
+
+const PURCHASE_INCLUDE = { category: { select: CATEGORY_SELECT } } as const;
+
+export class PrismaCardRepository implements CardRepository {
+  constructor(private readonly db: PrismaClient) {}
+
+  async listByUser(userId: string) {
+    return this.db.card.findMany({
+      where: { userId },
+      select: CARD_SELECT,
+      orderBy: [{ active: 'desc' }, { createdAt: 'asc' }],
+    }) as Promise<CardRecord[]>;
+  }
+
+  async findById(userId: string, id: string) {
+    return this.db.card.findFirst({
+      where: { id, userId },
+      select: CARD_SELECT,
+    }) as Promise<CardRecord | null>;
+  }
+
+  async create(data: {
+    userId: string;
+    name: string;
+    closingDay: number;
+    dueDay: number;
+    limitCents: number | null;
+  }) {
+    return this.db.card.create({ data, select: CARD_SELECT }) as Promise<CardRecord>;
+  }
+
+  async update(
+    userId: string,
+    id: string,
+    data: {
+      name?: string;
+      closingDay?: number;
+      dueDay?: number;
+      limitCents?: number | null;
+      active?: boolean;
+    },
+  ) {
+    const result = await this.db.card.updateMany({ where: { id, userId }, data });
+    if (result.count === 0) throw new NotFoundError('Cartão');
+    return (await this.findById(userId, id))!;
+  }
+
+  async delete(userId: string, id: string) {
+    await this.db.card.deleteMany({ where: { id, userId } });
+  }
+
+  async listPurchases(userId: string, cardId?: string) {
+    const items = await this.db.cardPurchase.findMany({
+      where: { userId, ...(cardId ? { cardId } : {}) },
+      include: PURCHASE_INCLUDE,
+      orderBy: [{ purchasedOn: 'desc' }, { createdAt: 'desc' }],
+    });
+    return items as unknown as CardPurchaseRecord[];
+  }
+
+  async findPurchase(userId: string, id: string) {
+    const found = await this.db.cardPurchase.findFirst({
+      where: { id, userId },
+      include: PURCHASE_INCLUDE,
+    });
+    return (found as unknown as CardPurchaseRecord) ?? null;
+  }
+
+  async createPurchase(data: {
+    userId: string;
+    cardId: string;
+    categoryId: string;
+    amountCents: number;
+    installments: number;
+    purchasedOn: Date;
+    note: string | null;
+  }) {
+    const created = await this.db.cardPurchase.create({ data, include: PURCHASE_INCLUDE });
+    return created as unknown as CardPurchaseRecord;
+  }
+
+  async deletePurchase(userId: string, id: string) {
+    await this.db.cardPurchase.deleteMany({ where: { id, userId } });
   }
 }

@@ -3,6 +3,20 @@ import type { FastifyPluginAsyncZod, ZodTypeProvider } from 'fastify-type-provid
 import {
   apiErrorSchema,
   billMonthQuerySchema,
+  cardPurchaseSchema,
+  cardSchema,
+  cashflowQuerySchema,
+  cashflowSchema,
+  convertDebtRequestSchema,
+  createCardPurchaseRequestSchema,
+  createCardRequestSchema,
+  invoiceDetailSchema,
+  invoiceQuerySchema,
+  isoDateSchema,
+  overdueBillSchema,
+  simulatePurchaseRequestSchema,
+  simulationResultSchema,
+  updateCardRequestSchema,
   billSchema,
   billsOverviewSchema,
   categoryReportSchema,
@@ -89,6 +103,36 @@ export function financeRoutes(container: Container): FastifyPluginAsyncZod {
           request.actor.userId,
           request.query.month ?? currentMonthRef(),
         ),
+    );
+
+    /* ──────────────────────── Saldo futuro ─────────────────────── */
+
+    route.get(
+      '/cashflow',
+      {
+        schema: {
+          tags: ['Saldo futuro'],
+          summary: 'Saldo dia a dia: real até hoje, previsto daí em diante',
+          security: [{ bearerAuth: [] }],
+          querystring: cashflowQuerySchema,
+          response: { 200: cashflowSchema, 400: apiErrorSchema },
+        },
+      },
+      async (request) => container.cashflow.get.execute(request.actor.userId, request.query),
+    );
+
+    route.post(
+      '/cashflow/simulate',
+      {
+        schema: {
+          tags: ['Saldo futuro'],
+          summary: 'Posso comprar? Projeta o saldo com e sem a compra (nada é gravado)',
+          security: [{ bearerAuth: [] }],
+          body: simulatePurchaseRequestSchema,
+          response: { 200: simulationResultSchema, 404: apiErrorSchema, 422: apiErrorSchema },
+        },
+      },
+      async (request) => container.cashflow.simulate.execute(request.actor.userId, request.body),
     );
 
     /* ───────────────────────── Categorias ──────────────────────── */
@@ -256,6 +300,20 @@ export function financeRoutes(container: Container): FastifyPluginAsyncZod {
           request.actor.userId,
           request.query.month ?? currentMonthRef(),
         ),
+    );
+
+    route.get(
+      '/bills/overdue',
+      {
+        schema: {
+          tags: ['Contas'],
+          summary: 'Contas vencidas e não pagas (acumulam até a baixa)',
+          security: [{ bearerAuth: [] }],
+          querystring: z.object({ today: isoDateSchema.optional() }),
+          response: { 200: z.array(overdueBillSchema) },
+        },
+      },
+      async (request) => container.bills.overdue.execute(request.actor.userId, request.query.today),
     );
 
     route.post(
@@ -462,6 +520,157 @@ export function financeRoutes(container: Container): FastifyPluginAsyncZod {
       },
       async (request, reply) => {
         await container.debts.remove.execute(request.actor.userId, request.params.id);
+        return reply.status(204).send(null);
+      },
+    );
+
+    route.post(
+      '/debts/:id/convert',
+      {
+        schema: {
+          tags: ['Dívidas'],
+          summary: 'Move as parcelas que faltam para uma conta fixa com prazo',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          body: convertDebtRequestSchema,
+          response: { 201: billSchema, 404: apiErrorSchema, 422: apiErrorSchema },
+        },
+      },
+      async (request, reply) =>
+        reply
+          .status(201)
+          .send(
+            await container.debts.convert.execute(
+              request.actor.userId,
+              request.params.id,
+              request.body,
+            ),
+          ),
+    );
+
+    /* ────────────────────────── Cartões ────────────────────────── */
+
+    route.get(
+      '/cards',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Cartões com as próximas faturas',
+          security: [{ bearerAuth: [] }],
+          querystring: z.object({ today: isoDateSchema.optional() }),
+          response: { 200: z.array(cardSchema) },
+        },
+      },
+      async (request) => container.cards.list.execute(request.actor.userId, request.query.today),
+    );
+
+    route.post(
+      '/cards',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Cadastra um cartão de crédito',
+          security: [{ bearerAuth: [] }],
+          body: createCardRequestSchema,
+          response: { 201: cardSchema },
+        },
+      },
+      async (request, reply) =>
+        reply
+          .status(201)
+          .send(await container.cards.create.execute(request.actor.userId, request.body)),
+    );
+
+    route.patch(
+      '/cards/:id',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Edita um cartão',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          body: updateCardRequestSchema,
+          response: { 200: cardSchema, 404: apiErrorSchema },
+        },
+      },
+      async (request) =>
+        container.cards.update.execute(request.actor.userId, request.params.id, request.body),
+    );
+
+    route.delete(
+      '/cards/:id',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Exclui um cartão e as compras dele',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          response: { 204: z.null(), 404: apiErrorSchema },
+        },
+      },
+      async (request, reply) => {
+        await container.cards.remove.execute(request.actor.userId, request.params.id);
+        return reply.status(204).send(null);
+      },
+    );
+
+    route.get(
+      '/cards/:id/invoice',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Fatura de um mês (padrão: a aberta)',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          querystring: invoiceQuerySchema,
+          response: { 200: invoiceDetailSchema, 404: apiErrorSchema },
+        },
+      },
+      async (request) =>
+        container.cards.invoice.execute(
+          request.actor.userId,
+          request.params.id,
+          request.query.month,
+        ),
+    );
+
+    route.post(
+      '/cards/:id/purchases',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Registra uma compra (à vista ou parcelada) no cartão',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          body: createCardPurchaseRequestSchema,
+          response: { 201: cardPurchaseSchema, 404: apiErrorSchema, 422: apiErrorSchema },
+        },
+      },
+      async (request, reply) =>
+        reply
+          .status(201)
+          .send(
+            await container.cards.createPurchase.execute(
+              request.actor.userId,
+              request.params.id,
+              request.body,
+            ),
+          ),
+    );
+
+    route.delete(
+      '/card-purchases/:id',
+      {
+        schema: {
+          tags: ['Cartões'],
+          summary: 'Apaga uma compra do cartão',
+          security: [{ bearerAuth: [] }],
+          params: paramsSchema,
+          response: { 204: z.null(), 404: apiErrorSchema },
+        },
+      },
+      async (request, reply) => {
+        await container.cards.removePurchase.execute(request.actor.userId, request.params.id);
         return reply.status(204).send(null);
       },
     );

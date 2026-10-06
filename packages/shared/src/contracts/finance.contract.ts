@@ -101,6 +101,8 @@ export const billSchema = z.object({
   category: categorySchema.pick({ id: true, name: true, color: true, kind: true }),
   /** Status da competência consultada. */
   paid: z.boolean(),
+  /** "Não vou pagar": a competência foi dispensada (negociada, cancelada...). */
+  waived: z.boolean(),
   paidAt: z.string().nullable(),
   dueDate: z.string(),
   /** `null` = conta recorrente sem fim definido (aluguel, assinatura...). */
@@ -139,6 +141,10 @@ export const billMonthQuerySchema = z.object({ month: monthRefSchema.optional() 
 export const setBillPaymentRequestSchema = z.object({
   month: monthRefSchema,
   paid: z.boolean(),
+  /** `true` = "não vou pagar": tira a competência da projeção sem mexer no saldo. */
+  waived: z.boolean().optional(),
+  /** Valor efetivamente pago (ex.: com juros de atraso). Padrão: o valor da conta. */
+  amountCents: centsSchema.optional(),
 });
 export type SetBillPaymentRequest = z.infer<typeof setBillPaymentRequestSchema>;
 
@@ -208,6 +214,13 @@ export const updateDebtRequestSchema = z
   .refine((data) => Object.keys(data).length > 0, 'Nada para atualizar.');
 export type UpdateDebtRequest = z.infer<typeof updateDebtRequestSchema>;
 
+/** Transforma o que falta de uma dívida numa conta fixa com prazo (entra no saldo futuro). */
+export const convertDebtRequestSchema = z.object({
+  categoryId: idSchema,
+  dueDay: dayOfMonthSchema,
+});
+export type ConvertDebtRequest = z.infer<typeof convertDebtRequestSchema>;
+
 export const debtProjectionSchema = z.object({
   month: z.string(),
   label: z.string(),
@@ -273,11 +286,40 @@ export const settingsSchema = z.object({
   roundCents: z.boolean(),
   autoDarkMode: z.boolean(),
   showDailyAllowance: z.boolean(),
+  /** Saldo na conta no início do dia `openingDate` — ponto de partida do saldo futuro. */
+  openingBalanceCents: z.number().int(),
+  /** `null` = saldo futuro ainda não configurado. */
+  openingDate: z.string().nullable(),
+  /** Gasto médio diário definido pelo usuário; `null` = calcular pelo histórico. */
+  dailyBudgetCents: z.number().int().nullable(),
 });
 export type SettingsDTO = z.infer<typeof settingsSchema>;
 
-export const updateSettingsRequestSchema = settingsSchema
-  .partial()
+/** Só as preferências liga/desliga — usadas pelos toggles da tela de Ajustes. */
+export type BooleanSettingKey =
+  | 'overspendAlerts'
+  | 'weeklySummary'
+  | 'roundCents'
+  | 'autoDarkMode'
+  | 'showDailyAllowance';
+
+export const updateSettingsRequestSchema = z
+  .object({
+    overspendAlerts: z.boolean().optional(),
+    weeklySummary: z.boolean().optional(),
+    roundCents: z.boolean().optional(),
+    autoDarkMode: z.boolean().optional(),
+    showDailyAllowance: z.boolean().optional(),
+    // Saldo pode ser negativo (cheque especial).
+    openingBalanceCents: z
+      .number()
+      .int('O valor deve estar em centavos (número inteiro).')
+      .min(-10_000_000_000)
+      .max(10_000_000_000)
+      .optional(),
+    openingDate: isoDateSchema.nullable().optional(),
+    dailyBudgetCents: centsOrZeroSchema.nullable().optional(),
+  })
   .refine((data) => Object.keys(data).length > 0, 'Nada para atualizar.');
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequestSchema>;
 
