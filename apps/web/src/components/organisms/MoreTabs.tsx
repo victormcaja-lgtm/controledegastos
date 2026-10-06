@@ -1,12 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { features } from '@/config/env';
 
 const TABS = [
+  ...(features.saldoFuturo
+    ? [
+        { to: '/resultado', label: 'Resultado', end: false },
+        { to: '/cartoes', label: 'Cartões', end: false },
+      ]
+    : []),
   { to: '/mais', label: 'Categorias', end: true },
   { to: '/parcelas', label: 'Parcelas', end: false },
   { to: '/guardar', label: 'Guardar', end: false },
   { to: '/ajustes', label: 'Ajustes', end: false },
-] as const;
+];
 
 /** Sub-navegação das telas agrupadas em "Mais". */
 export function MoreTabs() {

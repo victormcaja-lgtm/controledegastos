@@ -181,8 +181,11 @@ export const invoiceSummarySchema = z.object({
   closingDate: z.string(),
   dueDate: z.string(),
   totalCents: z.number().int(),
-  /** OPEN = ainda recebe compras; CLOSED = fechada, a vencer; PAST = já venceu. */
-  status: z.enum(['OPEN', 'CLOSED', 'PAST']),
+  /**
+   * OPEN = a que recebe compras hoje; FUTURE = próximas (parcelas já lançadas);
+   * CLOSED = fechada, a vencer; PAST = já venceu.
+   */
+  status: z.enum(['OPEN', 'FUTURE', 'CLOSED', 'PAST']),
 });
 export type InvoiceSummary = z.infer<typeof invoiceSummarySchema>;
 

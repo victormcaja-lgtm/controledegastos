@@ -52,5 +52,12 @@ describe('fatura do cartão', () => {
       ['2026-11', 15_000, 'CLOSED'],
       ['2026-12', 10_000, 'OPEN'],
     ]);
+
+    const later = buildInvoices(
+      card,
+      [{ id: 'p3', amountCents: 30_000, installments: 3, purchasedOn: '2026-10-05' }],
+      '2026-10-05',
+    );
+    expect(later.map((i) => i.status)).toEqual(['OPEN', 'FUTURE', 'FUTURE']);
   });
 });

@@ -88,10 +88,14 @@ export interface Invoice extends InvoiceSummary {
   items: Installment[];
 }
 
-function statusOf(closingDate: string, dueDate: string, today: string): InvoiceSummary['status'] {
-  if (dueDate < today) return 'PAST';
-  if (closingDate <= today) return 'CLOSED';
-  return 'OPEN';
+function statusOf(
+  card: Pick<CardLike, 'closingDay' | 'dueDay'>,
+  month: MonthRef,
+  today: string,
+): InvoiceSummary['status'] {
+  if (dueDateOf(card, month) < today) return 'PAST';
+  if (closingDateOf(card, month) <= today) return 'CLOSED';
+  return month === invoiceMonthFor(card, today) ? 'OPEN' : 'FUTURE';
 }
 
 /** Todas as faturas que têm pelo menos uma parcela, em ordem cronológica. */
@@ -117,7 +121,7 @@ export function buildInvoices(card: CardLike, purchases: PurchaseLike[], today: 
         closingDate,
         dueDate,
         totalCents: items.reduce((sum, item) => sum + item.amountCents, 0),
-        status: statusOf(closingDate, dueDate, today),
+        status: statusOf(card, month, today),
         items,
       };
     });
@@ -141,7 +145,7 @@ export function invoiceFor(
     closingDate,
     dueDate,
     totalCents: 0,
-    status: statusOf(closingDate, dueDate, today),
+    status: statusOf(card, month, today),
     items: [],
   };
 }

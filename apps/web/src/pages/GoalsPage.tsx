@@ -20,6 +20,7 @@ import {
 } from '@/application/hooks/queries';
 import { useToast } from '@/application/toast/ToastProvider';
 import { ApiRequestError } from '@/infra/http/api-client';
+import { features } from '@/config/env';
 
 const QUICK_AMOUNTS = [5000, 10000, 25000] as const;
 
@@ -73,6 +74,11 @@ export function GoalsPage() {
 
       <div className="mb-3.5">
         <SectionHeader title="Guardar" aside={`Guardado: ${formatMoney(totalSaved)}`} />
+        {features.saldoFuturo && (
+          <p className="mt-1 text-[12px] text-muted">
+            O que você guarda numa meta sai do seu saldo no dia do depósito.
+          </p>
+        )}
       </div>
 
       <Card className="mb-3.5">
