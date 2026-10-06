@@ -8,6 +8,10 @@ pedidas saem disso naturalmente:
 - **Se não pagar uma conta fixa, ela acumula** — conta vencida e sem baixa é projetada como saída
   pendente até ser paga.
 
+> **Status:** fases 1 a 6 implementadas num único PR (um commit para a API, um para o front),
+> a pedido, para ir direto para produção. A tela de Dívidas continua existindo, agora com
+> "mover para Contas"; a remoção da tabela `debts` segue para um PR posterior, como previsto.
+
 ---
 
 ## 1. Regras de negócio
