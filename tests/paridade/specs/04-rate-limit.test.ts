@@ -64,6 +64,19 @@ describe('rate limits', () => {
     expect(other.status).toBe(401);
   });
 
+  it('RN-162 ⚠️: vale o IP mais à ESQUERDA do X-Forwarded-For (o que o cliente envia)', async () => {
+    // Simula o proxy da Railway: o cliente manda um IP e o proxy acrescenta o real à direita.
+    const realIp = ipFor(50);
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      const spoofed = `198.18.${run[0]}.${attempt}`; // muda a cada tentativa
+      const response = await call('POST', '/api/auth/login', {
+        body: { email: uniqueEmail(), password: 'Errada12345' },
+        headers: { 'x-forwarded-for': `${spoofed}, ${realIp}` },
+      });
+      expect(response.status, `tentativa ${attempt}`).toBe(401); // nunca 429: o limite é burlado
+    }
+  });
+
   it('autocadastro: 5 por 15 min por IP (RN-038)', async () => {
     const ip = ipFor(20);
     for (let attempt = 1; attempt <= 5; attempt += 1) {
