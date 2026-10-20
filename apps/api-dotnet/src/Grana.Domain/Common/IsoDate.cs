@@ -33,7 +33,7 @@ public static class JsDate
             return null;
         }
 
-        // DateOnly começa no ano 1; o V8 aceitaria o ano 0 (ver tasks.md, D-06).
+        // DateOnly começa no ano 1; o V8 aceitaria o ano 0 (D-06: a validação responde 400).
         if (year < 1 || month is < 1 or > 12 || day is < 1 or > 31) return null;
         var first = new DateOnly(year, month, 1);
         return day - 1 > DateOnly.MaxValue.DayNumber - first.DayNumber ? null : first.AddDays(day - 1);

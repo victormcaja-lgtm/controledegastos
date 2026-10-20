@@ -22,10 +22,16 @@ public static partial class RequestSchemas
 
     private static StringSchema MonthRef() => Z.String().Regex(MonthPattern(), "Competência inválida. Use o formato AAAA-MM.");
 
+    // Ano 0000: o V8 aceita, mas o DateOnly do .NET começa no ano 1. É a única diferença
+    // aprovada em relação ao Node (D-06, 2026-10-20): responde 400 "Data inexistente.".
     private static ZodSchema IsoDate() =>
         Z.String()
             .Regex(IsoDatePattern(), "Data inválida. Use o formato AAAA-MM-DD.")
-            .Refine(value => !double.IsNaN(JsDate.MidnightUtcMilliseconds(((JsString)value).Value)), "Data inexistente.");
+            .Refine(value => ExistingDate(((JsString)value).Value), "Data inexistente.");
+
+    private static bool ExistingDate(string value) =>
+        !double.IsNaN(JsDate.MidnightUtcMilliseconds(value)) &&
+        !(IsoDatePattern().IsMatch(value) && value.StartsWith("0000-", StringComparison.Ordinal));
 
     private static NumberSchema Cents() =>
         Z.Number().Int(CentsMessage).Positive("O valor precisa ser maior que zero.").Max(10_000_000_000, "Valor acima do limite suportado.");

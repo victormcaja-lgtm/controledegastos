@@ -140,3 +140,4 @@ O contrato de cada endpoint (caminho, método, query, corpo, status e formato da
 | Transação nas operações compostas (criar usuário + provisionar, converter dívida, destaque de meta, rotação do refresh) | Análise §9.3 | Proposta: muda o resultado quando há falha no meio; **precisa de aprovação**. Até lá, mesma sequência de passos do Node |
 | Limpeza de refresh tokens vencidos, `JWT_REFRESH_SECRET` sem uso, coluna `billId` | Análise §9.6 | Registrados; sem mudança |
 | Restringir CORS de previews, imposição de troca de senha no servidor, revalidar perfil no banco | Segurança | Propostas; não entram sem aprovação |
+| Datas no **ano 0000** (`0000-01-01`): o Node aceita; o .NET responde 400 com `{path, message: "Data inexistente."}`, como em qualquer data inexistente | D-06 | **Aprovada em 2026-10-20.** Única diferença de comportamento autorizada até aqui. Vale só para data no formato `AAAA-MM-DD` com ano 0000 (`RequestSchemas.IsoDate`, teste `YearZeroTests`) |
