@@ -167,9 +167,32 @@ jobs:
           for i in $(seq 1 60); do curl -sf "$PARITY_BASE_URL/health" && exit 0; sleep 2; done
           cat api.log; exit 1
 
-      - name: Testes de paridade
+      - name: Testes de paridade (Node)
         run: npm run test:paridade -w @grana/paridade
 
-      - name: Log da API
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Subir a fachada .NET (repassa ao Node o que não migrou)
+        working-directory: apps/api-dotnet
+        env:
+          NODE_ENV: production
+          PORT: '3335'
+          HOST: 127.0.0.1
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+          NODE_UPSTREAM_URL: http://127.0.0.1:3334
+          CORS_ORIGINS: http://localhost:5173
+        run: |
+          dotnet run --project src/Grana.Api -c Release > ../../fachada.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:3335/health && exit 0; sleep 2; done
+          cat ../../fachada.log; exit 1
+
+      - name: Testes de paridade (fachada .NET)
+        run: npm run test:paridade -w @grana/paridade
+        env:
+          PARITY_BASE_URL: http://127.0.0.1:3335
+
+      - name: Logs
         if: failure()
-        run: cat api.log
+        run: cat api.log fachada.log || true
