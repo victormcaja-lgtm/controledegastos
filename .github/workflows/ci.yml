@@ -91,3 +91,57 @@ jobs:
       # renderização de fontes da máquina — os dois rodam só localmente.
       - name: Testes
         run: flutter test --exclude-tags live,screenshots
+
+  paridade:
+    name: Paridade (caracterização da API)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grana_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PARITY_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/grana_test
+      PARITY_BASE_URL: http://127.0.0.1:3334
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Compilar o pacote compartilhado
+        run: npm run build:shared
+
+      - name: Preparar o banco
+        run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+
+      - name: Subir a API Node (modo produção)
+        run: |
+          bash tests/paridade/scripts/start-node-api.sh > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf "$PARITY_BASE_URL/health" && exit 0; sleep 2; done
+          cat api.log; exit 1
+
+      - name: Testes de paridade
+        run: npm run test:paridade -w @grana/paridade
+
+      - name: Log da API
+        if: failure()
+        run: cat api.log

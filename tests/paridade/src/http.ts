@@ -19,7 +19,9 @@ export interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-let ipCounter = 0;
+// Começa num ponto aleatório: os contadores de rate limit vivem na memória da
+// API e sobrevivem entre execuções da suíte.
+let ipCounter = Math.floor(Math.random() * 0xffffff);
 /**
  * A API identifica o cliente pelo `X-Forwarded-For` (fica atrás do proxy da
  * Railway). Cada chamada sai de um IP diferente, para que os rate limits por

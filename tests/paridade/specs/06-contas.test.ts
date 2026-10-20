@@ -84,7 +84,7 @@ describe('visão do mês (RN-093, RN-096 a RN-100)', () => {
   it('ordem ativas primeiro e por dia; pagas e a pagar; calendário', async () => {
     const { user, createBill } = await setup();
     const rent = await createBill({ name: 'Aluguel', amountCents: 100000, dueDay: 15 });
-    const gym = await createBill({ name: 'Academia', amountCents: 10000, dueDay: 5 });
+    await createBill({ name: 'Academia', amountCents: 10000, dueDay: 5 });
     const tv = await createBill({ name: 'TV', amountCents: 5000, dueDay: 1 });
     const old = await createBill({ name: 'Antiga', amountCents: 7000, dueDay: 2 });
     await user.api.patch(`/api/bills/${old.id}`, { active: false });

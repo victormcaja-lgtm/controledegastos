@@ -470,3 +470,23 @@ O modelo do pedido veio com campos não preenchidos. Para não inventar regra, p
 | P4 | **Railway** para a API .NET. |
 | P5 | **.NET 10 LTS.** |
 | P6 | **Depois da paridade.** Os 22 itens ⚠️ são reproduzidos e fixados pelos testes de caracterização; cada correção entra só com aprovação explícita. |
+
+---
+
+## 11. Correções e achados da caracterização (Fase 2)
+
+A suíte `tests/paridade` (154 testes, caixa-preta contra a API em modo produção) confirmou a
+análise e corrigiu ou acrescentou estes pontos. **Eles valem mais que o texto das seções 4 e 5.**
+
+| Item | O que a API faz de verdade | Teste |
+|---|---|---|
+| RN-015 (correção) | O 429 de rate limit passa pelo tratador comum: `{statusCode:429, error:"Error", code:"RATE_LIMITED", message, requestId}` — com `requestId` e `error: "Error"`. | `04-rate-limit` |
+| RN-036 (correção) | O access token emitido **não tem `iss`** (a opção do `sign` substitui a padrão). A verificação aceita `iss` ausente ou `grana-api` e recusa outro emissor. Payload: `sub, email, role, iat, exp`. | `02-autenticacao`, `01-transversal` |
+| RN-008 (acréscimo) | A **validação do corpo vem antes da autenticação e da autorização**: sem token e corpo inválido → 400; usuário comum com corpo inválido na área de admin → 400, não 403. | `01-transversal`, `03-cadastro-admin` |
+| RN-008 (acréscimo) | Campo ausente e enum inválido saem com a mensagem **padrão, em inglês**, do validador (ex.: `Invalid input: expected number, received undefined`, `Invalid option: expected one of "EXPENSE"\|"INCOME"`). | `01-transversal` |
+| RN-008 (acréscimo) | Um campo pode trazer **mais de uma mensagem** em `details` (ex.: data `2026-1-1` → formato + "Data inexistente."). | `01-transversal` |
+| RN-015 (acréscimo) | O IP do rate limit vem do `X-Forwarded-For` (trustProxy). Os contadores ficam em memória e sobrevivem entre requisições de clientes diferentes. | `04-rate-limit` |
+| R-11 (acréscimo) | Colunas `TIMESTAMP(3)` sem fuso guardam **UTC**; um driver que assume o fuso local desloca as datas em 3h (confirmado com o `pg`). O Npgsql tem a mesma armadilha. | `src/db.ts` |
+| **RN-161 ⚠️ (novo)** | **Origem fora da allowlist de CORS → 500 genérico**, não 403. Em produção, os previews `*.vercel.app` caem nesse mesmo 500. | `12-borda` |
+| RN-002 ⚠️ (confirmado) | Valor > 2.147.483.647 centavos passa na validação e responde 500 genérico; 2.147.483.647 é aceito. | `11-ajustes` |
+| Todos os ⚠️ da seção 5 | Reproduzidos e fixados como comportamento atual. | ver `tests/paridade/README.md` |
