@@ -11,7 +11,7 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Decisão | Bloqueia | Recomendação |
 |---|---|---|---|
-| D-01 ✋ | Cópia do banco de produção para a homologação: integral e restrita, ou anonimizada (LGPD) | T-008 e as validações de dados de cada módulo | Anonimizada |
+| D-01 ✅ | Cópia do banco de produção para a homologação: integral e restrita, ou anonimizada (LGPD) | T-008 e as validações de dados de cada módulo | **Decidido (2026-10-20): anonimizada** |
 | D-02 ✋ | Corrigir já o RN-162 (rate limit burlável pelo `X-Forwarded-For`), nos dois backends | Nada (se aprovada, entra no M0 como T-00A) | Corrigir no M0 |
 | D-03 ✋ | Criar os serviços novos na Railway (fachada .NET e homologação), com custo adicional | T-007, T-008 | Aprovar |
 | D-04 ✋ | Momento de apontar o domínio público para a fachada (janela de baixo uso) | T-007 | Combinar data |

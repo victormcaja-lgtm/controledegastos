@@ -202,10 +202,11 @@ de cada módulo é provar que o .NET lê e grava exatamente como o Node, com qua
    de 4xx por código e p95, comparados com a semana anterior. **Critério:** nenhum aumento acima de
    10%.
 
-> **Decisão sua pendente (D-01):** a cópia do banco de produção para a homologação contém dado
-> financeiro pessoal (LGPD). As opções são: (a) cópia integral num ambiente restrito, apagada ao fim
-> de cada validação; ou (b) cópia anonimizada (nomes e e-mails trocados, valores mantidos). Recomendo
-> a (b).
+> **D-01 decidida (2026-10-20): cópia anonimizada.** A homologação recebe uma cópia do banco de
+> produção com nomes e e-mails trocados e os valores mantidos, para que os cálculos continuem
+> comparáveis. O script de anonimização faz parte da T-008. Os campos de texto livre a anonimizar
+> (observações, nomes de contas, metas e cartões) e o tratamento de hashes de senha, tokens e IPs da
+> auditoria serão listados nela e levados à sua aprovação antes de rodar.
 
 ## 8. Rollback
 
