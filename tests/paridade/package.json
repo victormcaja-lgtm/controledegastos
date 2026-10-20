@@ -1,0 +1,19 @@
+{
+  "name": "@grana/paridade",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Testes de caracterização (caixa-preta, só HTTP) — critério de paridade entre a API Node e a API .NET.",
+  "scripts": {
+    "test:paridade": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@node-rs/argon2": "^2.2.0",
+    "@types/node": "^22.13.1",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
