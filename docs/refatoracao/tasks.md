@@ -12,8 +12,8 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 | ID | Decisão | Bloqueia | Recomendação |
 |---|---|---|---|
 | D-01 ✅ | Cópia do banco de produção para a homologação: integral e restrita, ou anonimizada (LGPD) | T-008 e as validações de dados de cada módulo | **Decidido (2026-10-20): anonimizada** |
-| D-02 ✋ | Corrigir já o RN-162 (rate limit burlável pelo `X-Forwarded-For`), nos dois backends | Nada (se aprovada, entra no M0 como T-00A) | Corrigir no M0 |
-| D-03 ✋ | Criar os serviços novos na Railway (fachada .NET e homologação), com custo adicional | T-007, T-008 | Aprovar |
+| D-02 ✅ | Corrigir já o RN-162 (rate limit burlável pelo `X-Forwarded-For`), nos dois backends | T-00A | **Decidido (2026-10-20): corrigir no M0** |
+| D-03 ✅ | Criar os serviços novos na Railway (fachada .NET e homologação), com custo adicional | T-007, T-008 | **Autorizado (2026-10-20)** |
 | D-04 ✋ | Momento de apontar o domínio público para a fachada (janela de baixo uso) | T-007 | Combinar data |
 | D-05 | P1: motivação da migração (ajuda a priorizar, não bloqueia) | — | — |
 | D-06 ✅ | Datas do **ano 0000** (`0000-01-01`): o Node aceita; o `DateOnly` do .NET começa no ano 1. Única diferença irreprodutível achada até aqui | Nada (caso sem uso real) | **Decidido (2026-10-20): responder 400 "Data inexistente."** (já implementado na validação .NET) |
@@ -31,7 +31,7 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 | T-007 ✋ | Deploy da fachada na Railway (produção) e virada do domínio público (D-03, D-04); teste do rollback de domínio | RNF-03, RNF-04, plano §8 | Domínio na fachada; suíte de leitura em produção sem escrita; rollback ensaiado e cronometrado |
 | T-008 ✋ | Homologação: fachada + Node + cópia do banco (D-01); `tools/verificador-paridade` (comparação Node × .NET por amostragem e contagem) | plano §7 | Verificador roda contra homologação e relata 0 diferenças com tudo em `node` |
 | T-009 | Mapeamento EF Core de **todas** as tabelas (schema congelado) + teste que lê uma linha de cada tabela gravada pelo Node | R-10, R-11 | Teste de integração verde; nenhuma migration gerada |
-| T-00A ✋ | (Só se D-02 for aprovada) Corrigir o RN-162 confiando só no último salto, no Node e na fachada; ajustar a suíte | RN-162 | Pq 04 atualizado e verde nos dois backends |
+| T-00A | Corrigir o RN-162 confiando só no último salto, no Node e na fachada; ajustar a suíte | RN-162 | Pq 04 atualizado e verde nos dois backends |
 
 ## M1 — Ajustes, entradas fixas, categorias
 

@@ -141,13 +141,14 @@ Node (`*.calculator.test.ts`) são portados para `Grana.Domain.Tests` como prime
   *Por que mudou:* aplicar a borda .NET por cima das rotas repassadas exigiria remover e reescrever
   cabeçalhos do Node e deixaria os contadores de rate limit incoerentes. O repasse transparente é
   verificável: a suíte de paridade passou 155/155 contra a fachada.
-- O `X-Forwarded-For` é **acrescentado** (não substituído, que é o padrão do YARP). Assim o Node
-  continua vendo como cliente o mesmo IP mais à esquerda de hoje (RN-162). `Set-Cookie`, `Cookie` e
-  `Authorization` passam intactos (mesmo domínio e mesmo `Path=/api/auth`).
+- O `X-Forwarded-For` passa **intacto** (sem o salto da fachada). Com a correção do RN-162 (D-02), o
+  Node confia em 1 salto e lê o cliente no **último** valor da lista, que é o escrito pelo proxy da
+  Railway. Se a fachada acrescentasse o próprio IP, o Node a veria como cliente. `Set-Cookie`,
+  `Cookie` e `Authorization` passam intactos (mesmo domínio e mesmo `Path=/api/auth`).
 - **Diferença de transição registrada:** com rotas nos dois backends, o rate limit **global**
   (200/min por IP) passa a valer separadamente no Node e no .NET, ou seja, até 2 × 200 durante a
   migração. Os limites por rota (login, cadastro, troca de senha) não mudam, porque cada rota está
-  num backend só. Como o global já é burlável (RN-162), o impacto é nulo na prática. Some no M9.
+  num backend só. Some no M9.
 
 ### 6.2 Chave de roteamento por módulo
 
@@ -229,10 +230,13 @@ limits mandando um IP falso, **inclusive o limite de tentativas de login por IP*
 conta (5 falhas → 15 min) continua valendo.
 
 - Pela regra de paridade, o .NET reproduz esse comportamento até você decidir.
-- **Recomendo corrigir cedo**, já no M0, para valer nos dois backends. A correção é confiar só no
-  último salto (o proxy da Railway). Ela muda a forma como a suíte de paridade varia o IP: a API de
-  teste passaria a rodar com uma configuração que confia no `X-Forwarded-For`, como ambiente de
-  teste. **Precisa da sua aprovação (D-02).**
+- **D-02 decidida (2026-10-20): corrigir já.** Feito na T-00A: a API Node lê `TRUST_PROXY_HOPS`
+  (padrão 1) e confia só nesse número de saltos, então o IP do cliente é o último valor do
+  `X-Forwarded-For`. A fachada repassa o cabeçalho intacto, e as rotas nativas do .NET seguirão a
+  mesma regra no M1. O teste `04-rate-limit` fixa o comportamento novo nos dois backends.
+- **Antes do deploy em produção:** confirmar a cadeia real do `X-Forwarded-For` na Railway (os
+  relatos públicos divergem: a borda acrescenta ou substitui; nos dois casos, 1 salto está certo).
+  Se houver um CDN na frente, aumentar `TRUST_PROXY_HOPS`. Rollback: voltar o valor ou o deploy.
 
 ## 10. Ambientes e deploy (Railway)
 

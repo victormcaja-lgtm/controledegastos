@@ -64,17 +64,24 @@ describe('rate limits', () => {
     expect(other.status).toBe(401);
   });
 
-  it('RN-162 ⚠️: vale o IP mais à ESQUERDA do X-Forwarded-For (o que o cliente envia)', async () => {
+  it('RN-162 (corrigido, D-02): vale o IP acrescentado pelo proxy, à DIREITA; o da esquerda é ignorado', async () => {
     // Simula o proxy da Railway: o cliente manda um IP e o proxy acrescenta o real à direita.
+    // Trocar o IP da esquerda a cada tentativa não escapa mais do limite de login (8 por 15 min).
     const realIp = ipFor(50);
-    for (let attempt = 1; attempt <= 10; attempt += 1) {
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
       const spoofed = `198.18.${run[0]}.${attempt}`; // muda a cada tentativa
       const response = await call('POST', '/api/auth/login', {
         body: { email: uniqueEmail(), password: 'Errada12345' },
         headers: { 'x-forwarded-for': `${spoofed}, ${realIp}` },
       });
-      expect(response.status, `tentativa ${attempt}`).toBe(401); // nunca 429: o limite é burlado
+      expect(response.status, `tentativa ${attempt}`).toBe(401);
     }
+    expectRateLimited(
+      await call('POST', '/api/auth/login', {
+        body: { email: uniqueEmail(), password: 'Errada12345' },
+        headers: { 'x-forwarded-for': `198.18.${run[0]}.99, ${realIp}` },
+      }),
+    );
   });
 
   it('autocadastro: 5 por 15 min por IP (RN-038)', async () => {

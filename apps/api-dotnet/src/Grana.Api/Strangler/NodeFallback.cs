@@ -1,5 +1,4 @@
 using Yarp.ReverseProxy.Configuration;
-using Yarp.ReverseProxy.Transforms;
 
 namespace Grana.Api.Strangler;
 
@@ -35,12 +34,12 @@ public static class NodeFallback
             .LoadFromMemory([route], [cluster])
             .AddTransforms(context =>
             {
-                // O Node identifica o cliente pelo X-Forwarded-For MAIS À ESQUERDA (RN-162 ⚠️).
-                // ACRESCENTAR o salto da fachada mantém o mesmo IP que ele vê hoje; o padrão
-                // do YARP (substituir) faria todos os usuários parecerem o mesmo IP.
+                // O Node confia em 1 salto (TRUST_PROXY_HOPS, RN-162/D-02): o cliente é o ÚLTIMO
+                // valor do X-Forwarded-For, escrito pelo proxy da Railway. A fachada repassa o
+                // cabeçalho INTACTO; acrescentar o próprio IP faria o Node ver a fachada como
+                // cliente, e o padrão do YARP (substituir) apagaria o IP real.
                 context.UseDefaultForwarders = false;
-                context.AddXForwardedFor(action: ForwardedTransformActions.Append);
-                // O Node não usa Host/Proto/Prefix encaminhados; não mexer neles evita surpresas.
+                // Host/Proto/Prefix encaminhados também ficam de fora: o Node não os usa.
                 context.CopyRequestHeaders = true;
                 context.CopyResponseHeaders = true;
             });

@@ -37,7 +37,7 @@ A API sob teste precisa confiar no `X-Forwarded-For` (como em produção) e usar
 | `01-transversal` | RN-001, 003, 005–008, 011–014, 018, 021; ordem validação × autenticação; token (R-02) |
 | `02-autenticacao` | RN-030–046 (login, bloqueio, status, refresh e rotação, reuso, logout, perfil, troca de senha); ⚠️ 043, 044 |
 | `03-cadastro-admin` | RN-050–062 (autocadastro, área admin, listagem, criação, edição, último admin, aprovação, reset, exclusão em cascata); ⚠️ 054 ("da a"), 057 |
-| `04-rate-limit` | RN-015, RN-038 (login 8/15 min, cadastro 5/15 min, troca de senha 5/15 min, global 200/min, `/health` fora); ⚠️ 162 (IP mais à esquerda do X-Forwarded-For) |
+| `04-rate-limit` | RN-015, RN-038 (login 8/15 min, cadastro 5/15 min, troca de senha 5/15 min, global 200/min, `/health` fora); RN-162 corrigido pela D-02 (vale o IP mais à direita do X-Forwarded-For, acrescentado pelo proxy) |
 | `05-categorias-lancamentos` | RN-070–087; ⚠️ 004, 071, 081, 083, 086 |
 | `06-contas` | RN-090–101 (cadastro, visão do mês, calendário, prazo, baixa, atrasos); ⚠️ 095, 097, 098, 100 |
 | `07-entradas-dividas-metas` | RN-105–109 (entradas, dívidas e projeção, conversão em conta, metas e depósitos) |

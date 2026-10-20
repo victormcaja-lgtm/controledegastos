@@ -487,7 +487,7 @@ análise e corrigiu ou acrescentou estes pontos. **Eles valem mais que o texto d
 | RN-008 (acréscimo) | Um campo pode trazer **mais de uma mensagem** em `details` (ex.: data `2026-1-1` → formato + "Data inexistente."). | `01-transversal` |
 | RN-015 (acréscimo) | O IP do rate limit vem do `X-Forwarded-For` (trustProxy). Os contadores ficam em memória e sobrevivem entre requisições de clientes diferentes. | `04-rate-limit` |
 | R-11 (acréscimo) | Colunas `TIMESTAMP(3)` sem fuso guardam **UTC**; um driver que assume o fuso local desloca as datas em 3h (confirmado com o `pg`). O Npgsql tem a mesma armadilha. | `src/db.ts` |
-| **RN-162 ⚠️ (novo, segurança)** | O IP do rate limit é o **mais à esquerda** do `X-Forwarded-For` (`trustProxy: true`, `app.ts:57`), valor que o cliente controla: trocando-o, burla-se qualquer rate limit por IP, inclusive o de login. O bloqueio por conta (5 falhas) continua valendo. Ver `plano.md` §9. | `04-rate-limit` |
+| **RN-162 ⚠️ (novo, segurança)** | O IP do rate limit é o **mais à esquerda** do `X-Forwarded-For` (`trustProxy: true`, `app.ts:57`), valor que o cliente controla: trocando-o, burla-se qualquer rate limit por IP, inclusive o de login. O bloqueio por conta (5 falhas) continua valendo. **Corrigido pela D-02 (2026-10-20)**: ver `plano.md` §9. | `04-rate-limit` |
 | **RN-161 ⚠️ (novo)** | **Origem fora da allowlist de CORS → 500 genérico**, não 403. Em produção, os previews `*.vercel.app` caem nesse mesmo 500. | `12-borda` |
 | RN-002 ⚠️ (confirmado) | Valor > 2.147.483.647 centavos passa na validação e responde 500 genérico; 2.147.483.647 é aceito. | `11-ajustes` |
 | Todos os ⚠️ da seção 5 | Reproduzidos e fixados como comportamento atual. | ver `tests/paridade/README.md` |
