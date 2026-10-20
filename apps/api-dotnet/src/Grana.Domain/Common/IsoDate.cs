@@ -39,6 +39,59 @@ public static class JsDate
         return day - 1 > DateOnly.MaxValue.DayNumber - first.DayNumber ? null : first.AddDays(day - 1);
     }
 
+    /// <summary>
+    /// <c>Date.parse(`${value}T00:00:00Z`)</c> do V8, em milissegundos desde a época,
+    /// ou <c>NaN</c>. Só os formatos ISO de data entram: <c>AAAA</c>, <c>AAAA-MM</c>,
+    /// <c>AAAA-MM-DD</c> e anos estendidos <c>±AAAAAA</c>; mês 01–12, dia 01–31
+    /// (o excedente rola para o mês seguinte). Medido no Node 24.
+    /// </summary>
+    public static double MidnightUtcMilliseconds(string value)
+    {
+        int index;
+        long year;
+        if (value.Length > 0 && (value[0] == '+' || value[0] == '-'))
+        {
+            if (value.Length < 7 || !TryDigits(value, 1, 6, out var extended)) return double.NaN;
+            if (value[0] == '-' && extended == 0) return double.NaN;
+            year = value[0] == '-' ? -extended : extended;
+            index = 7;
+        }
+        else
+        {
+            if (value.Length < 4 || !TryDigits(value, 0, 4, out var plain)) return double.NaN;
+            year = plain;
+            index = 4;
+        }
+
+        var month = 1;
+        var day = 1;
+        if (index < value.Length)
+        {
+            if (value.Length < index + 3 || value[index] != '-' || !TryDigits(value, index + 1, 2, out month)) return double.NaN;
+            index += 3;
+            if (index < value.Length)
+            {
+                if (value.Length != index + 3 || value[index] != '-' || !TryDigits(value, index + 1, 2, out day)) return double.NaN;
+                index += 3;
+            }
+        }
+
+        if (index != value.Length || month is < 1 or > 12 || day is < 1 or > 31) return double.NaN;
+        var milliseconds = (DaysFromCivil(year, month, 1) + day - 1) * 86_400_000.0;
+        return Math.Abs(milliseconds) > 8.64e15 ? double.NaN : milliseconds;
+    }
+
+    /// <summary>Dias desde 1970-01-01 no calendário gregoriano proléptico (algoritmo de H. Hinnant).</summary>
+    private static long DaysFromCivil(long year, int month, int day)
+    {
+        year -= month <= 2 ? 1 : 0;
+        var era = (year >= 0 ? year : year - 399) / 400;
+        var yearOfEra = year - (era * 400);
+        var dayOfYear = ((153 * (month + (month > 2 ? -3 : 9))) + 2) / 5 + day - 1;
+        var dayOfEra = (yearOfEra * 365) + (yearOfEra / 4) - (yearOfEra / 100) + dayOfYear;
+        return (era * 146097) + dayOfEra - 719468;
+    }
+
     private static bool TryDigits(string value, int start, int length, out int result)
     {
         result = 0;

@@ -11,3 +11,8 @@ csharp_style_namespace_declarations = file_scoped:warning
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1861.severity = none
+
+# ZodCompat espelha a API do Zod de propósito (Z.String(), Z.Object(), .Int()):
+# os nomes iguais tornam a tradução dos schemas de packages/shared verificável a olho.
+[src/Grana.Api/Validation/*.cs]
+dotnet_diagnostic.CA1720.severity = none

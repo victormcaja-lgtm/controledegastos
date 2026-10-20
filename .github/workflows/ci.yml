@@ -66,6 +66,13 @@ jobs:
       - name: Build de produção
         run: npm run build:api && npm run build:web
 
+      # Se um schema de packages/shared mudar, a referência de validação do .NET
+      # (ZodCompat) precisa ser regenerada e o .NET ajustado no mesmo PR.
+      - name: Referência de validação do .NET está em dia
+        run: |
+          node apps/api-dotnet/tools/zod-golden/generate.mjs
+          git diff --exit-code -- apps/api-dotnet/tests/Grana.Api.IntegrationTests/Validation/zod-golden.json
+
   mobile:
     name: App móvel (Flutter)
     runs-on: ubuntu-latest

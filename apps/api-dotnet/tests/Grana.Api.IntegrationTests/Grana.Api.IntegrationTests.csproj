@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\src\Grana.Api\Grana.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Validation/zod-golden.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

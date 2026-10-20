@@ -53,6 +53,35 @@ public class JsCompatTests
         Assert.Null(JsDate.ParseIsoDate(input));
 
     [Theory]
+    [InlineData("2026-10", "2026-10-01")]
+    [InlineData("2026", "2026-01-01")]
+    [InlineData("+002026-10-20", "2026-10-20")]
+    [InlineData("2026-02-31", "2026-03-03")]
+    [InlineData("1970-01-01", "1970-01-01")]
+    [InlineData("1969-12-31", "1969-12-31")]
+    public void Date_parse_aceita_os_formatos_ISO_de_data(string input, string expected)
+    {
+        var milliseconds = JsDate.MidnightUtcMilliseconds(input);
+        Assert.Equal(expected, DateOnly.FromDateTime(DateTime.UnixEpoch.AddMilliseconds(milliseconds)).ToIso());
+    }
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("2026-10-20 ")]
+    [InlineData(" 2026-10-20")]
+    [InlineData("2026/10/20")]
+    [InlineData("1")]
+    [InlineData("12")]
+    [InlineData("99999")]
+    [InlineData("")]
+    [InlineData("2026-1-1")]
+    [InlineData("2026-01-1")]
+    [InlineData("2026-13")]
+    [InlineData("2026-10-20T00:00:00Z")]
+    [InlineData("-000000-01-01")]
+    public void Date_parse_recusa_o_resto(string input) => Assert.True(double.IsNaN(JsDate.MidnightUtcMilliseconds(input)));
+
+    [Theory]
     [InlineData(0, "R$ 0,00", "R$ 0", "+R$ 0,00")]
     [InlineData(5, "R$ 0,05", "R$ 0", "+R$ 0,05")]
     [InlineData(99, "R$ 0,99", "R$ 1", "+R$ 0,99")]
