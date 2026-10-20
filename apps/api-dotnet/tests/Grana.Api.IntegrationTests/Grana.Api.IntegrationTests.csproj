@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Grana.Api\Grana.Api.csproj" />
+    <ProjectReference Include="..\..\src\Grana.Infrastructure\Grana.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
