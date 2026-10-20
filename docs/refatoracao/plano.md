@@ -134,11 +134,20 @@ Node (`*.calculator.test.ts`) são portados para `Grana.Domain.Tests` como prime
 
 - O `Grana.Api` sobe com YARP e uma rota de *fallback* `/{**catch-all}` → API Node (rede privada da
   Railway). O domínio público da API passa a apontar para ele.
-- **A borda fica toda na fachada desde o primeiro dia:** CORS, cabeçalhos de segurança, rate limit
-  **global**, `requestId` e limite de corpo valem para todas as rotas, migradas ou não. Os cabeçalhos
-  equivalentes que vierem do Node são removidos na transformação do YARP, para não duplicar.
-- A fachada repassa o IP do cliente no `X-Forwarded-For` e mantém `Set-Cookie`, `Cookie` e
-  `Authorization` intactos (mesmo domínio e mesmo `Path=/api/auth`).
+- **Repasse transparente** *(decisão revista na T-006, 2026-10-20)*: a rota que ainda está no Node é
+  repassada sem que a fachada aplique borda nenhuma. O Node continua fazendo CORS, cabeçalhos, rate
+  limit e erros para ela, exatamente como hoje. A borda .NET (cabeçalhos do helmet, CORS, envelope de
+  erro e, no M1, validação, autenticação e rate limit) vale **só para as rotas nativas**.
+  *Por que mudou:* aplicar a borda .NET por cima das rotas repassadas exigiria remover e reescrever
+  cabeçalhos do Node e deixaria os contadores de rate limit incoerentes. O repasse transparente é
+  verificável: a suíte de paridade passou 155/155 contra a fachada.
+- O `X-Forwarded-For` é **acrescentado** (não substituído, que é o padrão do YARP). Assim o Node
+  continua vendo como cliente o mesmo IP mais à esquerda de hoje (RN-162). `Set-Cookie`, `Cookie` e
+  `Authorization` passam intactos (mesmo domínio e mesmo `Path=/api/auth`).
+- **Diferença de transição registrada:** com rotas nos dois backends, o rate limit **global**
+  (200/min por IP) passa a valer separadamente no Node e no .NET, ou seja, até 2 × 200 durante a
+  migração. Os limites por rota (login, cadastro, troca de senha) não mudam, porque cada rota está
+  num backend só. Como o global já é burlável (RN-162), o impacto é nulo na prática. Some no M9.
 
 ### 6.2 Chave de roteamento por módulo
 
@@ -149,9 +158,7 @@ variável de ambiente. Voltar um módulo para o Node é trocar a variável e rei
 ### 6.3 Regras de coexistência
 
 1. Uma rota é atendida por **um** backend por vez (sem *dual write*).
-2. Rate limits **por rota** (login, cadastro, troca de senha) são aplicados por quem atende a rota;
-   o global, pela fachada. Como a fachada vê todas as requisições, o global do Node nunca dispara
-   antes dela.
+2. Rate limits são aplicados por quem atende a rota (ver a diferença de transição do global em §6.1).
 3. **Schema congelado** até o fim (§2.2).
 4. Tokens, cookies e hashes compatíveis nos dois sentidos (RNF-02).
 
