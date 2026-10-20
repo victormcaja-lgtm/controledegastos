@@ -459,3 +459,14 @@ O modelo do pedido veio com campos não preenchidos. Para não inventar regra, p
 - **P5. Versão.** .NET 10 (LTS atual) está ok?
 - **P6. Comportamentos suspeitos.** Pode decidir agora (manter ou corrigir) os itens da seção 5 ou
   deixar para depois da paridade. Até lá, eles são reproduzidos.
+
+### 10.1 Respostas (2026-10-20)
+
+| # | Decisão |
+|---|---|
+| P1 | **Em aberto.** Não bloqueia: só muda prioridades. |
+| P2 | **Manter o front React** e só apontá-lo para a API .NET. Vale também para o app Flutter (`apps/mobile`, já em produção na `main`). |
+| P3 | **Mesmo banco e mesmo schema**, sem ETL. A migração de dados vira validação de leitura e escrita; rollback = rotear de volta para o Node. |
+| P4 | **Railway** para a API .NET. |
+| P5 | **.NET 10 LTS.** |
+| P6 | **Depois da paridade.** Os 22 itens ⚠️ são reproduzidos e fixados pelos testes de caracterização; cada correção entra só com aprovação explícita. |
