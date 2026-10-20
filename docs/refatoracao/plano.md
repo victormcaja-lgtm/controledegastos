@@ -204,7 +204,7 @@ de cada módulo é provar que o .NET lê e grava exatamente como o Node, com qua
 
 | Situação | Como voltar | Tempo | Testado em |
 |---|---|---|---|
-| Problema num módulo migrado | `Strangler:Modules:<M>=node` e reiniciar a fachada | < 5 min | T-0x9 de cada módulo (tasks) |
+| Problema num módulo migrado | `Strangler:Modules:<M>=node` e reiniciar a fachada | < 5 min | T-019, T-029 … T-089 |
 | Problema na fachada (M0) | Apontar o domínio público da Railway de volta para o serviço Node | < 5 min | T-007 |
 | Dado gravado pelo .NET | Nenhuma ação: o Node lê o que o .NET gravou (§7.2) | — | `*.cruzado.test.ts` |
 | Depois do M9 | O serviço Node fica parado, não apagado, por 30 dias, com a imagem da última versão | < 15 min | T-095 |
@@ -258,20 +258,20 @@ Cobertura mínima: ≥ 90% de linhas em Domain e Application e ≥ 80% no total 
 
 | Risco | Tratamento | Onde |
 |---|---|---|
-| R-01 hash | Isopoh PHC + teste com hash do Node | T-0xx M8, suíte 12 |
+| R-01 hash | Isopoh PHC + teste com hash do Node | T-081, suíte 12 |
 | R-02 coexistência | Mesmo segredo, emissão sem `iss`, cookie no mesmo domínio, fachada | M0, suíte 01/02 |
-| R-03 arredondamento | `JsMath.Round` | T-012, suíte 08 |
-| R-04 datas | Conversor de 3 ms, `JsDate`, `IClock` UTC | T-012 |
-| R-05 moeda | `MoneyFormatter` | T-012 |
+| R-03 arredondamento | `JsMath.Round` | T-003, suíte 08 |
+| R-04 datas | Conversor de 3 ms, `JsDate`, `IClock` UTC | T-003 |
+| R-05 moeda | `MoneyFormatter` | T-003 |
 | R-06 ordenação | `ORDER BY` no SQL, com a mesma collation | cada módulo |
-| R-07 validação | `ZodCompat` | T-011 |
+| R-07 validação | `ZodCompat` | T-004 |
 | R-08 contrato | Suíte de paridade | sempre |
 | R-09 rate limit | §5 e §6.3 | M0, M8 |
 | R-10 dono do schema | Schema congelado; EF sem migrations até o M9 | M9 |
-| R-11 mapeamento | Mapeamento explícito + teste de leitura de todas as tabelas | T-013 |
-| R-12 erros do framework | Caracterizar JSON malformado e content-type; diferenças restantes registradas | T-011, suíte 01 |
+| R-11 mapeamento | Mapeamento explícito + teste de leitura de todas as tabelas | T-009 |
+| R-12 erros do framework | Caracterizar JSON malformado e content-type; diferenças restantes registradas | T-004, suíte 01 |
 | R-13 SDK | Instalar o .NET 10 SDK | T-001 |
-| **RN-161, RN-162** | Reproduzidos; correção sob decisão (D-02) | M0 |
+| **RN-161, RN-162** | Reproduzidos; correção do RN-162 sob decisão (D-02) | T-005, T-00A |
 
 ## 13. Fluxo de trabalho dos agentes
 
