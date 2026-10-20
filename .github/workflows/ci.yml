@@ -65,3 +65,29 @@ jobs:
 
       - name: Build de produção
         run: npm run build:api && npm run build:web
+
+  mobile:
+    name: App móvel (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Instalar dependências
+        run: flutter pub get
+
+      - name: Análise estática
+        run: flutter analyze
+
+      # `live` precisa de uma API de verdade; `screenshots` depende da
+      # renderização de fontes da máquina — os dois rodam só localmente.
+      - name: Testes
+        run: flutter test --exclude-tags live,screenshots
