@@ -16,6 +16,7 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 | D-03 ✋ | Criar os serviços novos na Railway (fachada .NET e homologação), com custo adicional | T-007, T-008 | Aprovar |
 | D-04 ✋ | Momento de apontar o domínio público para a fachada (janela de baixo uso) | T-007 | Combinar data |
 | D-05 | P1: motivação da migração (ajuda a priorizar, não bloqueia) | — | — |
+| D-06 ✋ | Datas do **ano 0000** (`0000-01-01`): o Node aceita; o `DateOnly` do .NET começa no ano 1. Única diferença irreprodutível achada até aqui | Nada (caso sem uso real) | Responder 400 "Data inexistente." |
 
 ## M0 — Fundação e fachada
 
