@@ -1,0 +1,13 @@
+root = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+charset = utf-8
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Nos testes, o nome do método é uma frase: "Domain_nao_depende_de_...".
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1861.severity = none

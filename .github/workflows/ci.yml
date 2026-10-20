@@ -92,6 +92,27 @@ jobs:
       - name: Testes
         run: flutter test --exclude-tags live,screenshots
 
+  api-dotnet:
+    name: API .NET (build, testes, cobertura)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-dotnet
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build (avisos são erros)
+        run: dotnet build -c Release
+
+      # Testcontainers usa o Docker do runner para subir Postgres nos testes de integração.
+      - name: Testes com cobertura
+        run: dotnet test -c Release --no-build --collect:"XPlat Code Coverage" --results-directory coverage
+
   paridade:
     name: Paridade (caracterização da API)
     runs-on: ubuntu-latest
