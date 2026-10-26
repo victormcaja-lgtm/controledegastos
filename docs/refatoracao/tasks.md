@@ -80,9 +80,9 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-051 | Domínio `Card`, `CardPurchase`, `CardInvoiceCalculator` | RN-130–137 | Unidade ≥ 90% (inclui `card.calculator.test.ts`) |
-| T-052 | Endpoints `/api/cards*` e `/api/card-purchases/:id` | RF-05.6 | Pq 09 verde contra o .NET |
-| T-053 | Testes cruzados | RNF-02 | Verde |
+| T-051 | Domínio `Card`, `CardPurchase`, `CardInvoiceCalculator` | RN-130–137 | Unidade ≥ 90% (inclui `card.calculator.test.ts`) — **Feita** (casos portados) |
+| T-052 | Endpoints `/api/cards*` e `/api/card-purchases/:id` | RF-05.6 | Pq 09 verde contra o .NET — **Feita:** suíte 155/155 com `Cards` em `dotnet` |
+| T-053 | Testes cruzados | RNF-02 | Verde — **Feita:** `m5.cruzado.test.ts` (listagem em 5 datas, 12 faturas, exclusões, forma das linhas) |
 | T-058 | Validação de dados | §7.1 | 0 diferenças |
 | T-059 | Virar `Cards=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

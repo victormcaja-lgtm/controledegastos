@@ -274,6 +274,60 @@ public static class FinanceEndpoints
         });
     }
 
+    public static void MapCards(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/cards", new RouteSchemas(Query: RequestSchemas.TodayQuery), async request =>
+            Results.Json(await Use<CardUseCases>(request).ListAsync(request.Actor, request.Query.TextOrNull("today"), request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("POST", "/api/cards", new RouteSchemas(Body: RequestSchemas.CreateCardRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateCardCommand(
+                body.Text("name"), body.Int32Column("closingDay"), body.Int32Column("dueDay"), body.OptionalInt32ColumnOrNull("limitCents").Or(null));
+            var created = await Use<CardUseCases>(request).CreateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("PATCH", "/api/cards/{id}", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.UpdateCardRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new UpdateCardCommand(
+                body.OptionalText("name"),
+                body.OptionalInt32Column("closingDay"),
+                body.OptionalInt32Column("dueDay"),
+                body.OptionalInt32ColumnOrNull("limitCents"),
+                body.OptionalFlag("active"));
+            return Results.Json(await Use<CardUseCases>(request)
+                .UpdateAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/cards/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<CardUseCases>(request).DeleteAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+
+        routes.MapAuthenticated("GET", "/api/cards/{id}/invoice", new RouteSchemas(RequestSchemas.IdParams, Query: RequestSchemas.InvoiceQuery), async request =>
+            Results.Json(await Use<CardUseCases>(request)
+                .InvoiceAsync(request.Actor, request.Params.Text("id"), OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("POST", "/api/cards/{id}/purchases", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.CreateCardPurchaseRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateCardPurchaseCommand(
+                body.Int32Column("amountCents"), body.Int32Column("installments"), body.Text("purchasedOn"), body.Text("categoryId"), body.TextOrNull("note"));
+            var created = await Use<CardUseCases>(request)
+                .CreatePurchaseAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/card-purchases/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<CardUseCases>(request).DeletePurchaseAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+    }
+
     private static MonthRef? OptionalMonth(JsObject query) => query.TextOrNull("month") is { } month ? MonthRef.Parse(month) : null;
 
     private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;

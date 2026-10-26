@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IDebtRepository, EfDebtRepository>();
         services.AddScoped<IGoalRepository, EfGoalRepository>();
         services.AddScoped<IBillRepository, EfBillRepository>();
+        services.AddScoped<ICardRepository, EfCardRepository>();
         return services;
     }
 }
