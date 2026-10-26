@@ -57,9 +57,9 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-031 | Domínio `Debt` + `DebtProjector`; `Goal` + `GoalDeposit` (extrato de 10, destaque único) | RN-106–109 | Unidade ≥ 90% (inclui os casos portados de `budget.calculator.test.ts`) |
-| T-032 | Endpoints `/api/debts` (inclui `/convert`, que cria conta fixa) e `/api/goals` | RF-05.4 | Pq 07 verde contra o .NET |
-| T-033 | Testes cruzados | RNF-02 | Verde |
+| T-031 | Domínio `Debt` + `DebtProjector`; `Goal` + `GoalDeposit` (extrato de 10, destaque único) | RN-106–109 | Unidade ≥ 90% (inclui os casos portados de `budget.calculator.test.ts`) — **Feita** (casos de `projectDebts` portados) |
+| T-032 | Endpoints `/api/debts` (inclui `/convert`, que cria conta fixa) e `/api/goals` | RF-05.4 | Pq 07 verde contra o .NET — **Feita:** suíte 155/155 com `Debts` e `Goals` em `dotnet` |
+| T-033 | Testes cruzados | RNF-02 | Verde — **Feita:** `m3.cruzado.test.ts` (4 testes; a conta criada pela conversão no .NET é lida pelo Node) |
 | T-038 | Validação de dados | §7.1 | 0 diferenças |
 | T-039 | Virar `Debts/Goals=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

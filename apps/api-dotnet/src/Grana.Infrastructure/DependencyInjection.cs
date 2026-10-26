@@ -22,6 +22,9 @@ public static class DependencyInjection
         services.AddScoped<IIncomeRepository, EfIncomeRepository>();
         services.AddScoped<IUserSettingsRepository, EfUserSettingsRepository>();
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();
+        services.AddScoped<IDebtRepository, EfDebtRepository>();
+        services.AddScoped<IGoalRepository, EfGoalRepository>();
+        services.AddScoped<IBillRepository, EfBillRepository>();
         return services;
     }
 }

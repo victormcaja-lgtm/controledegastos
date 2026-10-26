@@ -150,6 +150,80 @@ public static class FinanceEndpoints
         });
     }
 
+    public static void MapDebts(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/debts", new RouteSchemas(), async request =>
+            Results.Json(await Use<DebtUseCases>(request).OverviewAsync(request.Actor, request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("POST", "/api/debts", new RouteSchemas(Body: RequestSchemas.CreateDebtRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateDebtCommand(
+                body.Text("name"), body.Int32Column("installmentCents"), body.Int32Column("totalInstallments"), body.Int32Column("paidInstallments"));
+            var created = await Use<DebtUseCases>(request).CreateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("PATCH", "/api/debts/{id}", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.UpdateDebtRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new UpdateDebtCommand(
+                body.OptionalText("name"),
+                body.OptionalInt32Column("installmentCents"),
+                body.OptionalInt32Column("totalInstallments"),
+                body.OptionalInt32Column("paidInstallments"));
+            return Results.Json(await Use<DebtUseCases>(request)
+                .UpdateAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/debts/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<DebtUseCases>(request).DeleteAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+
+        routes.MapAuthenticated("POST", "/api/debts/{id}/convert", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.ConvertDebtRequest), async request =>
+        {
+            var bill = await Use<DebtUseCases>(request).ConvertAsync(
+                request.Actor, request.Params.Text("id"), request.Body.Text("categoryId"), request.Body.Int32Column("dueDay"), request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(bill, statusCode: StatusCodes.Status201Created);
+        });
+    }
+
+    public static void MapGoals(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/goals", new RouteSchemas(), async request =>
+            Results.Json(await Use<GoalUseCases>(request).ListAsync(request.Actor, request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("POST", "/api/goals", new RouteSchemas(Body: RequestSchemas.CreateGoalRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateGoalCommand(body.Text("name"), body.Int32Column("targetCents"), body.Int32Column("savedCents"), body.Flag("featured"));
+            var created = await Use<GoalUseCases>(request).CreateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("PATCH", "/api/goals/{id}", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.UpdateGoalRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new UpdateGoalCommand(
+                body.OptionalText("name"), body.OptionalInt32Column("targetCents"), body.OptionalInt32Column("savedCents"), body.OptionalFlag("featured"));
+            return Results.Json(await Use<GoalUseCases>(request)
+                .UpdateAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/goals/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<GoalUseCases>(request).DeleteAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+
+        // 200, não 201: responde a meta atualizada (RN-109).
+        routes.MapAuthenticated("POST", "/api/goals/{id}/deposits", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.CreateGoalDepositRequest), async request =>
+            Results.Json(await Use<GoalUseCases>(request)
+                .DepositAsync(request.Actor, request.Params.Text("id"), request.Body.Int32Column("amountCents"), request.CancellationToken).ConfigureAwait(false)));
+    }
+
     private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;
 
     private static T Use<T>(NativeRequest request)

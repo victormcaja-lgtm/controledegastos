@@ -29,6 +29,8 @@ builder.Services.AddScoped<SettingsUseCases>();
 builder.Services.AddScoped<IncomeUseCases>();
 builder.Services.AddScoped<CategoryUseCases>();
 builder.Services.AddScoped<TransactionUseCases>();
+builder.Services.AddScoped<DebtUseCases>();
+builder.Services.AddScoped<GoalUseCases>();
 
 if (settings.NodeUpstreamUrl is { Length: > 0 } upstream) builder.Services.AddNodeFallback(upstream);
 
@@ -42,6 +44,8 @@ if (settings.IsNative("Settings")) app.MapSettings();
 if (settings.IsNative("Incomes")) app.MapIncomes();
 if (settings.IsNative("Categories")) app.MapCategories();
 if (settings.IsNative("Transactions")) app.MapTransactions();
+if (settings.IsNative("Debts")) app.MapDebts();
+if (settings.IsNative("Goals")) app.MapGoals();
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);
