@@ -5,7 +5,8 @@
   "description": "Grana — controle financeiro pessoal (monorepo: API Fastify + Web React)",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "tests/*"
   ],
   "engines": {
     "node": ">=20.11.0"

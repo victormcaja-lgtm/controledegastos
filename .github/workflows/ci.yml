@@ -66,6 +66,13 @@ jobs:
       - name: Build de produção
         run: npm run build:api && npm run build:web
 
+      # Se um schema de packages/shared mudar, a referência de validação do .NET
+      # (ZodCompat) precisa ser regenerada e o .NET ajustado no mesmo PR.
+      - name: Referência de validação do .NET está em dia
+        run: |
+          node apps/api-dotnet/tools/zod-golden/generate.mjs
+          git diff --exit-code -- apps/api-dotnet/tests/Grana.Api.IntegrationTests/Validation/zod-golden.json
+
   mobile:
     name: App móvel (Flutter)
     runs-on: ubuntu-latest
@@ -91,3 +98,101 @@ jobs:
       # renderização de fontes da máquina — os dois rodam só localmente.
       - name: Testes
         run: flutter test --exclude-tags live,screenshots
+
+  api-dotnet:
+    name: API .NET (build, testes, cobertura)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-dotnet
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build (avisos são erros)
+        run: dotnet build -c Release
+
+      # Testcontainers usa o Docker do runner para subir Postgres nos testes de integração.
+      - name: Testes com cobertura
+        run: dotnet test -c Release --no-build --collect:"XPlat Code Coverage" --results-directory coverage
+
+  paridade:
+    name: Paridade (caracterização da API)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grana_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PARITY_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/grana_test
+      PARITY_BASE_URL: http://127.0.0.1:3334
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Compilar o pacote compartilhado
+        run: npm run build:shared
+
+      - name: Preparar o banco
+        run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+
+      - name: Subir a API Node (modo produção)
+        run: |
+          bash tests/paridade/scripts/start-node-api.sh > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf "$PARITY_BASE_URL/health" && exit 0; sleep 2; done
+          cat api.log; exit 1
+
+      - name: Testes de paridade (Node)
+        run: npm run test:paridade -w @grana/paridade
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Subir a fachada .NET (repassa ao Node o que não migrou)
+        working-directory: apps/api-dotnet
+        env:
+          NODE_ENV: production
+          PORT: '3335'
+          HOST: 127.0.0.1
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+          NODE_UPSTREAM_URL: http://127.0.0.1:3334
+          CORS_ORIGINS: http://localhost:5173
+        run: |
+          dotnet run --project src/Grana.Api -c Release > ../../fachada.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:3335/health && exit 0; sleep 2; done
+          cat ../../fachada.log; exit 1
+
+      - name: Testes de paridade (fachada .NET)
+        run: npm run test:paridade -w @grana/paridade
+        env:
+          PARITY_BASE_URL: http://127.0.0.1:3335
+
+      - name: Logs
+        if: failure()
+        run: cat api.log fachada.log || true

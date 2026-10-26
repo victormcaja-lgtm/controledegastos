@@ -122,6 +122,7 @@ COOKIE_DOMAIN=
 
 RATE_LIMIT_MAX=200
 LOGIN_RATE_LIMIT_MAX=8
+TRUST_PROXY_HOPS=1
 
 ADMIN_EMAIL=voce@seudominio.com
 ADMIN_PASSWORD=<uma senha forte que você vai trocar no primeiro acesso>

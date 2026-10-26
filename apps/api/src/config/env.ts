@@ -23,6 +23,10 @@ const envSchema = z.object({
 
   RATE_LIMIT_MAX: z.coerce.number().int().min(10).default(200),
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(3).default(8),
+  // Quantos proxies à frente da API são confiáveis (RN-162, D-02). O IP do cliente é
+  // lido do X-Forwarded-For a partir da DIREITA, pulando esses saltos; o que o
+  // cliente escreve à esquerda é ignorado. Railway → API: 1.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
 
   ADMIN_EMAIL: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
