@@ -60,7 +60,7 @@ export default tseslint.config(
 
   // Scripts e testes podem escrever no console à vontade.
   {
-    files: ['**/*.test.ts', '**/*.test.tsx', 'apps/api/prisma/seed.ts', '**/tests/**'],
+    files: ['**/*.test.ts', '**/*.test.tsx', 'apps/api/prisma/seed.ts', '**/tests/**', 'tools/**'],
     rules: { 'no-console': 'off' },
   },
 
