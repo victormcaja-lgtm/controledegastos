@@ -89,6 +89,42 @@ public sealed class TransactionRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Periodo_do_saldo_futuro_e_media_diaria()
+    {
+        await using (var db = NewContext())
+        {
+            var repository = new EfTransactionRepository(db);
+            var index = 0;
+            async Task Add(Category category, EntryType type, int cents, string date, string user = "u1") =>
+                await repository.AddAsync(Transaction.Create($"d{index++}", user, category, type, cents, IsoDate.Parse(date), null, Now.AddSeconds(-index)), CancellationToken.None);
+
+            await Add(Market, EntryType.Expense, 100, "2026-01-09");
+            await Add(Market, EntryType.Expense, 7000, "2026-10-01");
+            await Add(Market, EntryType.Expense, 1400, "2026-10-01");
+            await Add(Salary, EntryType.Income, 50000, "2026-10-05");
+            await Add(Market, EntryType.Expense, 300, "2026-10-14");
+            await Add(Market, EntryType.Expense, 999, "2026-10-15");
+        }
+
+        await using (var db = NewContext())
+        {
+            var repository = new EfTransactionRepository(db);
+            // Inclusive nas duas pontas, ordem occurredOn asc, createdAt asc.
+            Assert.Equal(["d2", "d1", "d3", "d4", "d5"], (await repository.ListBetweenAsync("u1", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 15), CancellationToken.None)).Select(t => t.Id));
+            Assert.Empty(await repository.ListBetweenAsync("u2", new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), CancellationToken.None));
+
+            var before = new DateOnly(2026, 10, 15);
+            // Despesas de 17/07 a 14/10 (o dia 15 fica de fora): 7000 + 1400 + 300; 1º lançamento em 01/10, 14 dias → 8700 / 14 = 621,4 → 621.
+            Assert.Equal(621L, await repository.AverageDailyExpenseAsync("u1", before, 90, CancellationToken.None));
+            // Começou há menos de 7 dias: divide por 7 (ninguém tem a média diluída nem inflada demais).
+            Assert.Equal(43L, await repository.AverageDailyExpenseAsync("u1", new DateOnly(2026, 10, 15), 1, CancellationToken.None));
+            Assert.Equal(0L, await repository.AverageDailyExpenseAsync("u2", before, 90, CancellationToken.None));
+            // De 02/10 a 30/12: 300 + 999; 1º lançamento em 14/10, 78 dias → 1299 / 78 = 16,65 → 17.
+            Assert.Equal(17L, await repository.AverageDailyExpenseAsync("u1", new DateOnly(2026, 12, 31), 90, CancellationToken.None));
+        }
+    }
+
+    [Fact]
     public async Task Filtros_ordem_paginacao_e_isolamento()
     {
         await using (var db = NewContext())

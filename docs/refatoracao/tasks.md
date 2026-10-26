@@ -99,8 +99,8 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-071 | `CashflowProjector` (eventos e ordem, saldo de hoje, menor saldo, resumo mensal, média diária) e veredito da simulação | RN-140–149 | Unidade ≥ 90% (inclui `cashflow.calculator.test.ts`) |
-| T-072 | Endpoints `/api/cashflow` e `/api/cashflow/simulate` | RF-05.7 | Pq 10 verde contra o .NET; p95 de 90 dias < 200 ms (RNF-05) |
+| T-071 | `CashflowProjector` (eventos e ordem, saldo de hoje, menor saldo, resumo mensal, média diária) e veredito da simulação | RN-140–149 | Unidade ≥ 90% (inclui `cashflow.calculator.test.ts`) — **Feita** (17 casos portados) |
+| T-072 | Endpoints `/api/cashflow` e `/api/cashflow/simulate` | RF-05.7 | Pq 10 verde contra o .NET; p95 de 90 dias < 200 ms (RNF-05) — **Feita:** suíte 155/155 com `Cashflow` em `dotnet`; p95 de 47,6 ms no .NET × 121,3 ms no Node (3.000 lançamentos, 10 contas, 300 compras; respostas idênticas byte a byte) |
 | T-078 | Validação de dados (só leitura) | §7.1 | 0 diferenças |
 | T-079 | Virar `Cashflow=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

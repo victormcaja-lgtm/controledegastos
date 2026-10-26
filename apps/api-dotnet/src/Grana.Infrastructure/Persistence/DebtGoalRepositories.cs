@@ -129,6 +129,18 @@ public sealed class EfGoalRepository(GranaDbContext db) : IGoalRepository
         }
     }
 
+    public async Task<IReadOnlyList<(string GoalId, string GoalName, int AmountCents, DateTime CreatedAt)>> DepositsSinceAsync(
+        string userId, DateTime since, CancellationToken cancellationToken)
+    {
+        var rows = await db.GoalDeposits.AsNoTracking()
+            .Join(db.Goals, deposit => deposit.GoalId, goal => goal.Id, (deposit, goal) => new { deposit, goal })
+            .Where(pair => pair.goal.UserId == userId && pair.deposit.CreatedAt >= since)
+            .OrderBy(pair => pair.deposit.CreatedAt)
+            .Select(pair => new { pair.deposit.GoalId, pair.goal.Name, pair.deposit.AmountCents, pair.deposit.CreatedAt })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return [.. rows.Select(row => (row.GoalId, row.Name, row.AmountCents, row.CreatedAt))];
+    }
+
     private static Goal ToDomain(GoalRow row) =>
         Goal.Restore(row.Id, row.UserId, row.Name, row.TargetCents, row.SavedCents, row.Featured,
             [.. row.Deposits.Select(deposit => new GoalDeposit(deposit.Id, deposit.AmountCents, deposit.CreatedAt))]);

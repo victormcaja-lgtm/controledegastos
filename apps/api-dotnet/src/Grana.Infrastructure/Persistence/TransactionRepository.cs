@@ -103,6 +103,30 @@ public sealed class EfTransactionRepository(GranaDbContext db) : ITransactionRep
         return [.. rows.Select(ToDomain)];
     }
 
+    public async Task<IReadOnlyList<Transaction>> ListBetweenAsync(string userId, DateOnly first, DateOnly last, CancellationToken cancellationToken)
+    {
+        var rows = await db.Transactions.AsNoTracking().Include(t => t.Category)
+            .Where(t => t.UserId == userId && t.OccurredOn >= first && t.OccurredOn <= last)
+            .OrderBy(t => t.OccurredOn).ThenBy(t => t.CreatedAt)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return [.. rows.Select(ToDomain)];
+    }
+
+    public async Task<long> AverageDailyExpenseAsync(string userId, DateOnly before, int days, CancellationToken cancellationToken)
+    {
+        var since = before.AddDays(-days);
+        var expenses = db.Transactions.Where(t => t.UserId == userId && t.Type == EntryTypeDb.EXPENSE && t.OccurredOn >= since && t.OccurredOn < before);
+        var aggregate = await expenses
+            .GroupBy(_ => 1)
+            .Select(group => new { Total = group.Sum(t => (long)t.AmountCents), First = group.Min(t => t.OccurredOn) })
+            .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        if (aggregate is null || aggregate.Total == 0) return 0;
+
+        // Quem começou a lançar há pouco não pode ter a média diluída por dias vazios.
+        var spanDays = Math.Max(7, Math.Min(days, before.DayNumber - aggregate.First.DayNumber));
+        return (long)JsMath.Round(aggregate.Total / (double)spanDays);
+    }
+
     public async Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken)
     {
         var current = MonthRef.Of(DateOnly.FromDateTime(nowUtc));

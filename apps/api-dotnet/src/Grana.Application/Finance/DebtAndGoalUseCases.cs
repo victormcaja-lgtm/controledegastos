@@ -36,6 +36,10 @@ public interface IGoalRepository
 
     /// <summary>Grava o depósito e incrementa o guardado NO BANCO, numa transação só.</summary>
     Task AddDepositAsync(string userId, string goalId, string depositId, int amountCents, DateTime nowUtc, CancellationToken cancellationToken);
+
+    /// <summary>Depósitos de todas as metas com <c>createdAt ≥ since</c>, na ordem de criação, com o nome da meta.</summary>
+    Task<IReadOnlyList<(string GoalId, string GoalName, int AmountCents, DateTime CreatedAt)>> DepositsSinceAsync(
+        string userId, DateTime since, CancellationToken cancellationToken);
 }
 
 public sealed record DebtDto(

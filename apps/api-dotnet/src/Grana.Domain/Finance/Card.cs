@@ -117,7 +117,7 @@ public enum InvoiceStatus
 
 /// <summary>Uma parcela de compra numa fatura (a competência é o mês de fechamento).</summary>
 public sealed record CardInstallment(
-    string PurchaseId, int Number, int Installments, int AmountCents, MonthRef Month, DateOnly ClosingDate, DateOnly DueDate);
+    string PurchaseId, int Number, int Installments, long AmountCents, MonthRef Month, DateOnly ClosingDate, DateOnly DueDate);
 
 public sealed record CardInvoice(
     MonthRef Month, DateOnly ClosingDate, DateOnly DueDate, long TotalCents, InvoiceStatus Status, IReadOnlyList<CardInstallment> Items);
@@ -153,10 +153,10 @@ public static class CardInvoiceCalculator
     public static MonthRef OpenInvoiceMonth(Card card, string today) => InvoiceMonthFor(card, today);
 
     /// <summary><c>⌊total / n⌋</c> e o resto inteiro na primeira parcela (RN-132).</summary>
-    public static IReadOnlyList<int> SplitInstallments(int amountCents, int installments)
+    public static IReadOnlyList<long> SplitInstallments(long amountCents, int installments)
     {
         var count = Math.Max(1, installments);
-        var baseAmount = (int)Math.Floor(amountCents / (double)count);
+        var baseAmount = (long)Math.Floor(amountCents / (double)count);
         var remainder = amountCents - (baseAmount * count);
         return [.. Enumerable.Range(0, count).Select(index => baseAmount + (index == 0 ? remainder : 0))];
     }
@@ -164,11 +164,17 @@ public static class CardInvoiceCalculator
     public static IReadOnlyList<CardInstallment> InstallmentsOf(Card card, CardPurchase purchase)
     {
         ArgumentNullException.ThrowIfNull(purchase);
-        var first = InvoiceMonthFor(card, purchase.PurchasedOn.ToIso());
-        return [.. SplitInstallments(purchase.AmountCents, purchase.Installments).Select((amount, index) =>
+        return InstallmentsOf(card, purchase.Id, purchase.AmountCents, purchase.Installments, purchase.PurchasedOn.ToIso());
+    }
+
+    /// <summary>Parcelas de uma compra com a data como TEXTO — a simulação usa a data como chegou.</summary>
+    public static IReadOnlyList<CardInstallment> InstallmentsOf(Card card, string purchaseId, long amountCents, int installments, string purchasedOn)
+    {
+        var first = InvoiceMonthFor(card, purchasedOn);
+        return [.. SplitInstallments(amountCents, installments).Select((amount, index) =>
         {
             var month = first.AddMonths(index);
-            return new CardInstallment(purchase.Id, index + 1, purchase.Installments, amount, month, ClosingDate(card, month), DueDate(card, month));
+            return new CardInstallment(purchaseId, index + 1, installments, amount, month, ClosingDate(card, month), DueDate(card, month));
         })];
     }
 
@@ -189,7 +195,7 @@ public static class CardInvoiceCalculator
             .GroupBy(installment => installment.Month)
             .OrderBy(group => group.Key)
             .Select(group => new CardInvoice(
-                group.Key, ClosingDate(card, group.Key), DueDate(card, group.Key), group.Sum(item => (long)item.AmountCents), StatusOf(card, group.Key, today), [.. group]))];
+                group.Key, ClosingDate(card, group.Key), DueDate(card, group.Key), group.Sum(item => item.AmountCents), StatusOf(card, group.Key, today), [.. group]))];
     }
 
     /// <summary>Uma fatura específica — vazia, com o status calculado, se não houver parcela no mês.</summary>
@@ -215,7 +221,7 @@ public static class CardInvoiceCalculator
         var used = purchases
             .SelectMany(purchase => InstallmentsOf(card, purchase))
             .Where(installment => !Before(installment.DueDate, today))
-            .Sum(installment => (long)installment.AmountCents);
+            .Sum(installment => installment.AmountCents);
         return ([.. upcoming.Take(4)], used);
     }
 

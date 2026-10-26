@@ -34,6 +34,7 @@ builder.Services.AddScoped<GoalUseCases>();
 builder.Services.AddScoped<BillUseCases>();
 builder.Services.AddScoped<CardUseCases>();
 builder.Services.AddScoped<DashboardUseCases>();
+builder.Services.AddScoped<CashflowUseCases>();
 
 if (settings.NodeUpstreamUrl is { Length: > 0 } upstream) builder.Services.AddNodeFallback(upstream);
 
@@ -52,6 +53,7 @@ if (settings.IsNative("Goals")) app.MapGoals();
 if (settings.IsNative("Bills")) app.MapBills();
 if (settings.IsNative("Cards")) app.MapCards();
 if (settings.IsNative("Dashboard")) app.MapDashboard();
+if (settings.IsNative("Cashflow")) app.MapCashflow();
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);

@@ -131,4 +131,18 @@ internal sealed class InMemoryTransactions : ITransactionRepository
     public long Average { get; set; }
 
     public Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult(Average);
+
+    public Task<IReadOnlyList<Transaction>> ListBetweenAsync(string userId, DateOnly first, DateOnly last, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Transaction>>([.. Items.Where(t => t.UserId == userId && t.OccurredOn >= first && t.OccurredOn <= last).OrderBy(t => t.OccurredOn)]);
+
+    /// <summary>Média diária fixa e o dia de referência pedido (consulta de banco coberta no teste do repositório).</summary>
+    public long DailyAverage { get; set; }
+
+    public DateOnly? DailyAverageBefore { get; private set; }
+
+    public Task<long> AverageDailyExpenseAsync(string userId, DateOnly before, int days, CancellationToken cancellationToken)
+    {
+        DailyAverageBefore = before;
+        return Task.FromResult(DailyAverage);
+    }
 }

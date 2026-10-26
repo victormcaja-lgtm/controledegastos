@@ -32,6 +32,15 @@ public interface ITransactionRepository
     /// <paramref name="nowUtc"/>: soma ÷ meses, arredondada como o <c>Math.round</c> (RN-111).
     /// </summary>
     Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken);
+
+    /// <summary>Lançamentos com <c>first ≤ occurredOn ≤ last</c>, na ordem <c>occurredOn asc, createdAt asc</c> (saldo futuro).</summary>
+    Task<IReadOnlyList<Transaction>> ListBetweenAsync(string userId, DateOnly first, DateOnly last, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Média diária de despesas dos <paramref name="days"/> dias antes de <paramref name="before"/>:
+    /// soma ÷ max(7, min(dias, dias desde o 1º lançamento do período)), arredondada; sem despesas, 0 (RN-141).
+    /// </summary>
+    Task<long> AverageDailyExpenseAsync(string userId, DateOnly before, int days, CancellationToken cancellationToken);
 }
 
 public sealed record CategoryRefDto(string Id, string Name, string Color, string Kind);

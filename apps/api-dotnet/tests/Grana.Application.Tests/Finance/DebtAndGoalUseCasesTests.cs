@@ -157,6 +157,11 @@ internal sealed class InMemoryGoals : IGoalRepository
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<(string GoalId, string GoalName, int AmountCents, DateTime CreatedAt)>> DepositsSinceAsync(
+        string userId, DateTime since, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<(string GoalId, string GoalName, int AmountCents, DateTime CreatedAt)>>(
+            [.. _rows.Values.Where(r => r.Goal.UserId == userId).SelectMany(r => r.Deposits.Where(d => d.CreatedAt >= since).Select(d => (r.Goal.Id, r.Goal.Name, d.AmountCents, d.CreatedAt))).OrderBy(d => d.CreatedAt)]);
+
     private static Goal Snapshot((Goal Goal, List<GoalDeposit> Deposits) row) =>
         Goal.Restore(row.Goal.Id, row.Goal.UserId, row.Goal.Name, row.Goal.TargetCents, row.Goal.SavedCents, row.Goal.Featured, [.. row.Deposits]);
 }

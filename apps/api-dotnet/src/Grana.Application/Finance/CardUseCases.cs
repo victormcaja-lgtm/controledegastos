@@ -57,7 +57,7 @@ public sealed record CardDto(
 }
 
 public sealed record InvoiceItemDto(
-    string PurchaseId, string Label, CategoryRefDto Category, DateOnly PurchasedOn, int InstallmentNumber, int Installments, int AmountCents);
+    string PurchaseId, string Label, CategoryRefDto Category, DateOnly PurchasedOn, int InstallmentNumber, int Installments, long AmountCents);
 
 public sealed record InvoiceDetailDto(
     string CardId, string CardName, string Month, DateOnly ClosingDate, DateOnly DueDate, long TotalCents, string Status, IReadOnlyList<InvoiceItemDto> Items);

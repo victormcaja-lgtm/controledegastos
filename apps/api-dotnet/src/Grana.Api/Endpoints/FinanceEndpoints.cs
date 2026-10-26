@@ -337,6 +337,32 @@ public static class FinanceEndpoints
             Results.Json(await Use<DashboardUseCases>(request).CategoryReportAsync(request.Actor, OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false)));
     }
 
+    public static void MapCashflow(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/cashflow", new RouteSchemas(Query: RequestSchemas.CashflowQuery), async request =>
+        {
+            var query = request.Query;
+            return Results.Json(await Use<CashflowUseCases>(request)
+                .GetAsync(request.Actor, query.Text("from"), query.Text("to"), query.TextOrNull("today"), request.CancellationToken).ConfigureAwait(false));
+        });
+
+        // 200: nada é gravado, só calculado (RN-146).
+        routes.MapAuthenticated("POST", "/api/cashflow/simulate", new RouteSchemas(Body: RequestSchemas.SimulatePurchaseRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new SimulatePurchaseCommand(
+                body.Text("from"),
+                body.Text("to"),
+                body.TextOrNull("today"),
+                body.SafeInteger("amountCents"),
+                (int)body.SafeInteger("installments"),
+                body.Text("date"),
+                body.Text("method") == "CARD",
+                body.TextOrNull("cardId"));
+            return Results.Json(await Use<CashflowUseCases>(request).SimulateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false));
+        });
+    }
+
     private static MonthRef? OptionalMonth(JsObject query) => query.TextOrNull("month") is { } month ? MonthRef.Parse(month) : null;
 
     private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;

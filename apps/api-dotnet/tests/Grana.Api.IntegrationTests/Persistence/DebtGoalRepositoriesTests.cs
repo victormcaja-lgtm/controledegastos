@@ -115,6 +115,11 @@ public sealed class DebtGoalRepositoriesTests : IAsyncLifetime
         {
             var repository = new EfGoalRepository(db);
             Assert.Empty((await repository.FindByIdAsync("u1", "g2", CancellationToken.None))!.Deposits);
+
+            // Depósitos desde uma data, de todas as metas do usuário, com o nome da meta e na ordem de criação.
+            var since = await repository.DepositsSinceAsync("u1", Now.AddMinutes(11), CancellationToken.None);
+            Assert.Equal([("g1", "Praia", 1100, Now.AddMinutes(11)), ("g1", "Praia", 1200, Now.AddMinutes(12))], since);
+            Assert.Empty(await repository.DepositsSinceAsync("u2", Now, CancellationToken.None));
             await repository.DeleteAsync("u1", "g1", CancellationToken.None);
             Assert.Null(await repository.FindByIdAsync("u1", "g1", CancellationToken.None));
             Assert.Equal(0, await db.GoalDeposits.CountAsync(d => d.GoalId == "g1"));
