@@ -1,4 +1,5 @@
 using Grana.Application.Finance;
+using Grana.Domain.Common;
 using Grana.Domain.Finance;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,6 +91,28 @@ public sealed class EfTransactionRepository(GranaDbContext db) : ITransactionRep
 
     public Task DeleteAsync(string userId, string id, CancellationToken cancellationToken) =>
         db.Transactions.Where(t => t.Id == id && t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Transaction>> ListForMonthAsync(string userId, MonthRef month, CancellationToken cancellationToken)
+    {
+        var start = month.Start;
+        var end = month.AddMonths(1).Start;
+        var rows = await db.Transactions.AsNoTracking().Include(t => t.Category)
+            .Where(t => t.UserId == userId && t.OccurredOn >= start && t.OccurredOn < end)
+            .OrderByDescending(t => t.OccurredOn).ThenByDescending(t => t.CreatedAt)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return [.. rows.Select(ToDomain)];
+    }
+
+    public async Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var current = MonthRef.Of(DateOnly.FromDateTime(nowUtc));
+        var since = current.AddMonths(-months).Start;
+        var until = current.Start;
+        var sum = await db.Transactions
+            .Where(t => t.UserId == userId && t.Type == EntryTypeDb.EXPENSE && t.OccurredOn >= since && t.OccurredOn < until)
+            .SumAsync(t => (long)t.AmountCents, cancellationToken).ConfigureAwait(false);
+        return (long)JsMath.Round(sum / (double)months);
+    }
 
     private static Transaction ToDomain(TransactionRow row)
     {

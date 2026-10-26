@@ -328,6 +328,15 @@ public static class FinanceEndpoints
         });
     }
 
+    public static void MapDashboard(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/dashboard", new RouteSchemas(Query: RequestSchemas.MonthQuery), async request =>
+            Results.Json(await Use<DashboardUseCases>(request).SummaryAsync(request.Actor, OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("GET", "/api/reports/categories", new RouteSchemas(Query: RequestSchemas.MonthQuery), async request =>
+            Results.Json(await Use<DashboardUseCases>(request).CategoryReportAsync(request.Actor, OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false)));
+    }
+
     private static MonthRef? OptionalMonth(JsObject query) => query.TextOrNull("month") is { } month ? MonthRef.Parse(month) : null;
 
     private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;

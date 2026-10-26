@@ -99,6 +99,15 @@ public sealed class EfIncomeRepository(GranaDbContext db) : IIncomeRepository
         return [.. rows.Select(ToDomain)];
     }
 
+    public async Task<IReadOnlyList<Income>> ListActiveAsync(string userId, CancellationToken cancellationToken)
+    {
+        var rows = await db.Incomes.AsNoTracking()
+            .Where(i => i.UserId == userId && i.Active)
+            .OrderBy(i => i.ReceiptDay)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return [.. rows.Select(ToDomain)];
+    }
+
     public async Task<Income?> FindByIdAsync(string userId, string id, CancellationToken cancellationToken)
     {
         var row = await db.Incomes.AsNoTracking()

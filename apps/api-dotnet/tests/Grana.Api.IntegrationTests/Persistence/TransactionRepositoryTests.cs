@@ -56,6 +56,39 @@ public sealed class TransactionRepositoryTests : IAsyncLifetime
         new(user, month, category, type, search, page, perPage);
 
     [Fact]
+    public async Task Lancamentos_do_mes_e_media_dos_3_meses_fechados()
+    {
+        await using (var db = NewContext())
+        {
+            var repository = new EfTransactionRepository(db);
+            var index = 0;
+            async Task Add(Category category, EntryType type, int cents, string date) =>
+                await repository.AddAsync(Transaction.Create($"m{index++}", "u1", category, type, cents, IsoDate.Parse(date), null, Now.AddSeconds(index)), CancellationToken.None);
+
+            await Add(Market, EntryType.Expense, 100, "2026-06-30");
+            await Add(Market, EntryType.Expense, 1000, "2026-07-01");
+            await Add(Market, EntryType.Expense, 2000, "2026-08-15");
+            await Add(Salary, EntryType.Income, 99999, "2026-08-16");
+            await Add(Market, EntryType.Expense, 3001, "2026-09-30");
+            await Add(Market, EntryType.Expense, 5000, "2026-10-01");
+            await Add(Market, EntryType.Expense, 7000, "2026-10-01");
+        }
+
+        await using (var db = NewContext())
+        {
+            var repository = new EfTransactionRepository(db);
+            Assert.Equal(["m6", "m5"], (await repository.ListForMonthAsync("u1", MonthRef.Parse("2026-10"), CancellationToken.None)).Select(t => t.Id));
+            Assert.Empty(await repository.ListForMonthAsync("u2", MonthRef.Parse("2026-10"), CancellationToken.None));
+            // Julho a setembro (fechados em relação a outubro): (1000 + 2000 + 3001) / 3 = 2000,33 → 2000.
+            Assert.Equal(2000L, await repository.AverageMonthlyExpenseAsync("u1", 3, new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc), CancellationToken.None));
+            // (1000 + 2000 + 3002) / 3 = 2000,67 → 2001 (Math.round).
+            await repository.AddAsync(Transaction.Create("m7", "u1", Market, EntryType.Expense, 1, new DateOnly(2026, 9, 1), null, Now), CancellationToken.None);
+            Assert.Equal(2001L, await repository.AverageMonthlyExpenseAsync("u1", 3, new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), CancellationToken.None));
+            Assert.Equal(0L, await repository.AverageMonthlyExpenseAsync("u2", 3, Now, CancellationToken.None));
+        }
+    }
+
+    [Fact]
     public async Task Filtros_ordem_paginacao_e_isolamento()
     {
         await using (var db = NewContext())

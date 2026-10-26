@@ -38,6 +38,9 @@ public interface IIncomeRepository
     /// <summary>Ordem do banco: <c>active desc, receiptDay asc</c> (RN-105).</summary>
     Task<IReadOnlyList<Income>> ListAsync(string userId, CancellationToken cancellationToken);
 
+    /// <summary>Só as ativas, por <c>receiptDay asc</c> (resumo do mês e saldo futuro).</summary>
+    Task<IReadOnlyList<Income>> ListActiveAsync(string userId, CancellationToken cancellationToken);
+
     Task<Income?> FindByIdAsync(string userId, string id, CancellationToken cancellationToken);
 
     Task AddAsync(Income income, DateTime nowUtc, CancellationToken cancellationToken);

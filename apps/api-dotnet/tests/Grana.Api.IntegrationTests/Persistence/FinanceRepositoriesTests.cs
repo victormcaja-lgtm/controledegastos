@@ -148,6 +148,7 @@ public sealed class FinanceRepositoriesTests : IAsyncLifetime
         {
             var repository = new EfIncomeRepository(db);
             Assert.Equal(["i3", "i1", "i2"], (await repository.ListAsync("u1", CancellationToken.None)).Select(i => i.Id));
+            Assert.Equal(["i3", "i1"], (await repository.ListActiveAsync("u1", CancellationToken.None)).Select(i => i.Id));
             Assert.False((await repository.FindByIdAsync("u1", "i2", CancellationToken.None))!.Active);
             Assert.Null(await repository.FindByIdAsync("u1", "i4", CancellationToken.None));
 

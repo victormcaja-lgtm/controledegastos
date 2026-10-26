@@ -90,8 +90,8 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-061 | `BudgetCalculator` e `CategoryReportBuilder` (frases, barras, semanas, média de meses futuros) | RN-110–117 | Unidade ≥ 90% (inclui `budget.calculator.test.ts`) |
-| T-062 | Endpoints `/api/dashboard` e `/api/reports/categories` | RF-05.5 | Pq 08 verde contra o .NET |
+| T-061 | `BudgetCalculator` e `CategoryReportBuilder` (frases, barras, semanas, média de meses futuros) | RN-110–117 | Unidade ≥ 90% (inclui `budget.calculator.test.ts`) — **Feita** (casos de `calculateBudget` portados) |
+| T-062 | Endpoints `/api/dashboard` e `/api/reports/categories` | RF-05.5 | Pq 08 verde contra o .NET — **Feita:** suíte 155/155 com `Dashboard` em `dotnet`; `m6.cruzado.test.ts` compara 9 competências |
 | T-068 | Validação de dados (só leitura) | §7.1 | 0 diferenças |
 | T-069 | Virar `Dashboard=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

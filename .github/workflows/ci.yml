@@ -213,6 +213,7 @@ jobs:
           Strangler__Modules__Goals: dotnet
           Strangler__Modules__Bills: dotnet
           Strangler__Modules__Cards: dotnet
+          Strangler__Modules__Dashboard: dotnet
         run: |
           dotnet run --project src/Grana.Api -c Release --no-build > ../../fachada-m1.log 2>&1 &
           for i in $(seq 1 90); do curl -sf http://127.0.0.1:3336/health && exit 0; sleep 2; done

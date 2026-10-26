@@ -123,4 +123,12 @@ internal sealed class InMemoryTransactions : ITransactionRepository
         Items.RemoveAll(t => t.UserId == userId && t.Id == id);
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<Transaction>> ListForMonthAsync(string userId, MonthRef month, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Transaction>>([.. Items.Where(t => t.UserId == userId && MonthRef.Of(t.OccurredOn) == month).OrderByDescending(t => t.OccurredOn)]);
+
+    /// <summary>Valor fixo: a média é consulta de banco (coberta no teste do repositório).</summary>
+    public long Average { get; set; }
+
+    public Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult(Average);
 }

@@ -71,6 +71,9 @@ internal sealed class InMemoryIncomes : IIncomeRepository
     public Task<IReadOnlyList<Income>> ListAsync(string userId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Income>>([.. Items.Where(i => i.UserId == userId)]);
 
+    public Task<IReadOnlyList<Income>> ListActiveAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Income>>([.. Items.Where(i => i.UserId == userId && i.Active).OrderBy(i => i.ReceiptDay)]);
+
     public Task<Income?> FindByIdAsync(string userId, string id, CancellationToken cancellationToken) =>
         Task.FromResult(Items.FirstOrDefault(i => i.UserId == userId && i.Id == id));
 

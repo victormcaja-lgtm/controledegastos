@@ -23,6 +23,15 @@ public interface ITransactionRepository
     Task UpdateAsync(Transaction transaction, DateTime nowUtc, CancellationToken cancellationToken);
 
     Task DeleteAsync(string userId, string id, CancellationToken cancellationToken);
+
+    /// <summary>Todos os lançamentos da competência, na ordem <c>occurredOn desc, createdAt desc</c>.</summary>
+    Task<IReadOnlyList<Transaction>> ListForMonthAsync(string userId, MonthRef month, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Média mensal de despesas dos <paramref name="months"/> meses FECHADOS antes do mês de
+    /// <paramref name="nowUtc"/>: soma ÷ meses, arredondada como o <c>Math.round</c> (RN-111).
+    /// </summary>
+    Task<long> AverageMonthlyExpenseAsync(string userId, int months, DateTime nowUtc, CancellationToken cancellationToken);
 }
 
 public sealed record CategoryRefDto(string Id, string Name, string Color, string Kind);
