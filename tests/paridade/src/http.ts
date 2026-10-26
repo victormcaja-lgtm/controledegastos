@@ -17,6 +17,8 @@ export interface RequestOptions {
   rawBody?: string;
   cookie?: string | undefined;
   headers?: Record<string, string>;
+  /** Outra API que não a de PARITY_BASE_URL (testes cruzados). */
+  baseUrl?: string | undefined;
 }
 
 // Começa num ponto aleatório: os contadores de rate limit vivem na memória da
@@ -54,7 +56,7 @@ export async function call<T = any>(
     headers['content-type'] = 'application/json';
   }
 
-  const response = await fetch(`${env.baseUrl}${path}`, { method, headers, body });
+  const response = await fetch(`${options.baseUrl ?? env.baseUrl}${path}`, { method, headers, body });
   const text = await response.text();
   let parsed: unknown = null;
   try {
@@ -72,13 +74,13 @@ export async function call<T = any>(
 }
 
 /** Cliente já autenticado: `api.get('/api/categories')`. */
-export function client(token?: string) {
+export function client(token?: string, baseUrl?: string) {
   return {
-    get: <T = any>(path: string) => call<T>('GET', path, { token }),
-    post: <T = any>(path: string, body?: unknown) => call<T>('POST', path, { token, body }),
-    patch: <T = any>(path: string, body?: unknown) => call<T>('PATCH', path, { token, body }),
-    put: <T = any>(path: string, body?: unknown) => call<T>('PUT', path, { token, body }),
-    delete: <T = any>(path: string) => call<T>('DELETE', path, { token }),
+    get: <T = any>(path: string) => call<T>('GET', path, { token, baseUrl }),
+    post: <T = any>(path: string, body?: unknown) => call<T>('POST', path, { token, body, baseUrl }),
+    patch: <T = any>(path: string, body?: unknown) => call<T>('PATCH', path, { token, body, baseUrl }),
+    put: <T = any>(path: string, body?: unknown) => call<T>('PUT', path, { token, body, baseUrl }),
+    delete: <T = any>(path: string) => call<T>('DELETE', path, { token, baseUrl }),
   };
 }
 

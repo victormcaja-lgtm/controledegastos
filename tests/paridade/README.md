@@ -24,6 +24,7 @@ npm run test:paridade -w @grana/paridade
 | `PARITY_BASE_URL` | `http://localhost:3334` | API sob teste (Node hoje, .NET depois) |
 | `PARITY_DATABASE_URL` | `postgresql://postgres:postgres@localhost:5433/grana_test` | O **mesmo** banco que a API usa; a suíte o limpa |
 | `PARITY_JWT_SECRET` | segredo do script | O **mesmo** `JWT_ACCESS_SECRET` da API: a suíte emite tokens (R-02) |
+| `PARITY_NODE_URL` e `PARITY_DOTNET_URL` | — | Liga os testes cruzados (`*.cruzado.test.ts`): API Node direta e fachada .NET com o módulo em `dotnet`, no **mesmo** banco. Sem as duas, esses arquivos são pulados |
 
 A API sob teste precisa confiar no `X-Forwarded-For` (como em produção) e usar os rate limits
 **padrão**: a suíte manda um IP diferente por chamada, e só `04-rate-limit` fixa o IP.

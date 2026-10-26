@@ -39,7 +39,7 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 |---|---|---|---|
 | T-011 | Domínio: `UserSettings`, `Income`, `Category` (+ paleta, sistema × personalizada) | RN-070–074, 105, 150–153 | Unidade ≥ 90% — **Feita** (100% nas classes novas) |
 | T-012 | Casos de uso e endpoints de `/api/settings`, `/api/incomes`, `/api/categories` | RF-05.1, RF-05.4, RF-05.8 | Pq 05 (categorias), 07 (entradas), 11 verdes contra o .NET direto — **Feita:** suíte inteira 155/155 contra a fachada com o M1 em `dotnet` e com tudo em `node`; inclui autenticação, rate limit, parser de corpo e a chave `Strangler__Modules__*` |
-| T-013 | Testes cruzados de escrita (.NET grava → Node lê, e vice-versa) para os 3 recursos | RNF-02, plano §7.2 | `m1.cruzado.test.ts` verde |
+| T-013 | Testes cruzados de escrita (.NET grava → Node lê, e vice-versa) para os 3 recursos | RNF-02, plano §7.2 | `m1.cruzado.test.ts` verde — **Feita:** 6 testes nos dois sentidos + forma da linha gravada (§7.3); no CI com `PARITY_NODE_URL`/`PARITY_DOTNET_URL` |
 | T-018 | Validação de dados em homologação (contagem + amostragem) | plano §7.1 | 0 diferenças |
 | T-019 | Virar `Settings/Incomes/Categories=dotnet`, monitorar 48 h e ensaiar rollback | §6.2, §8 | Suíte inteira verde contra a fachada nos dois estados; métricas dentro do critério |
 

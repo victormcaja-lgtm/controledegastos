@@ -10,6 +10,12 @@
  */
 export const env = {
   baseUrl: (process.env.PARITY_BASE_URL ?? 'http://localhost:3334').replace(/\/$/, ''),
+  /**
+   * Testes cruzados (`*.cruzado.test.ts`, plano.md §7.2): a API Node e a .NET ao
+   * mesmo tempo, no mesmo banco. Sem as duas, esses arquivos são pulados.
+   */
+  nodeUrl: process.env.PARITY_NODE_URL?.replace(/\/$/, ''),
+  dotnetUrl: process.env.PARITY_DOTNET_URL?.replace(/\/$/, ''),
   databaseUrl:
     process.env.PARITY_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5433/grana_test',
   jwtSecret: process.env.PARITY_JWT_SECRET ?? 'paridade-segredo-de-acesso-com-mais-de-32-caracteres',

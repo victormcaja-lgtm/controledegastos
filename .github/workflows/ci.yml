@@ -213,10 +213,14 @@ jobs:
           for i in $(seq 1 90); do curl -sf http://127.0.0.1:3336/health && exit 0; sleep 2; done
           cat ../../fachada-m1.log; exit 1
 
-      - name: Testes de paridade (fachada .NET, M1 em dotnet)
+      # Com as duas URLs, também rodam os testes cruzados (*.cruzado.test.ts):
+      # o que o .NET grava o Node lê, e vice-versa (plano.md §7.2).
+      - name: Testes de paridade e cruzados (fachada .NET, M1 em dotnet)
         run: npm run test:paridade -w @grana/paridade
         env:
           PARITY_BASE_URL: http://127.0.0.1:3336
+          PARITY_NODE_URL: http://127.0.0.1:3334
+          PARITY_DOTNET_URL: http://127.0.0.1:3336
 
       - name: Logs
         if: failure()
