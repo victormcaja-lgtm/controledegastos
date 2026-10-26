@@ -58,12 +58,12 @@ public sealed class NativeFinanceRoutesTests : IAsyncLifetime, IDisposable
         Environment.SetEnvironmentVariable("NODE_UPSTREAM_URL", null);
         Environment.SetEnvironmentVariable("JWT_ACCESS_SECRET", Secret);
         Environment.SetEnvironmentVariable("RATE_LIMIT_MAX", "10");
-        foreach (var module in new[] { "Settings", "Incomes", "Categories" }) Environment.SetEnvironmentVariable($"Strangler__Modules__{module}", "dotnet");
+        foreach (var module in new[] { "Settings", "Incomes", "Categories", "Transactions" }) Environment.SetEnvironmentVariable($"Strangler__Modules__{module}", "dotnet");
 
         _factory = new WebApplicationFactory<Program>();
         _client = _factory.CreateClient();
 
-        foreach (var module in new[] { "Settings", "Incomes", "Categories" }) Environment.SetEnvironmentVariable($"Strangler__Modules__{module}", null);
+        foreach (var module in new[] { "Settings", "Incomes", "Categories", "Transactions" }) Environment.SetEnvironmentVariable($"Strangler__Modules__{module}", null);
         Environment.SetEnvironmentVariable("JWT_ACCESS_SECRET", null);
         Environment.SetEnvironmentVariable("RATE_LIMIT_MAX", null);
     }
@@ -182,6 +182,32 @@ public sealed class NativeFinanceRoutesTests : IAsyncLifetime, IDisposable
         var system = await Send(HttpMethod.Delete, "/api/categories/sys-mercado");
         Assert.Equal("Categorias padrão não podem ser excluídas — apenas arquivadas.", system.Body.GetProperty("message").GetString());
         Assert.Equal(HttpStatusCode.NoContent, (await Send(HttpMethod.Delete, $"/api/categories/{id}")).Status);
+    }
+
+    [Fact]
+    public async Task Lancamentos_crud_lista_e_regras_da_categoria()
+    {
+        var created = await Send(HttpMethod.Post, "/api/transactions", new { type = "EXPENSE", amountCents = 1250, categoryId = "sys-mercado", occurredOn = "2026-02-31", note = "  feira  " });
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        var id = created.Body.GetProperty("id").GetString();
+        Assert.Equal(("2026-03-03", "feira", "Mercado"), (created.Body.GetProperty("occurredOn").GetString(), created.Body.GetProperty("note").GetString(), created.Body.GetProperty("category").GetProperty("name").GetString()));
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$", created.Body.GetProperty("createdAt").GetString());
+
+        var wrongType = await Send(HttpMethod.Post, "/api/transactions", new { type = "INCOME", amountCents = 1, categoryId = "sys-mercado", occurredOn = "2026-01-01" });
+        Assert.Equal("Escolha uma categoria de entrada para um recebimento.", wrongType.Body.GetProperty("message").GetString());
+
+        var list = await Send(HttpMethod.Get, "/api/transactions?month=2026-03&perPage=5");
+        var day = list.Body.GetProperty("groups")[0];
+        Assert.Equal(("03 de março", 1250, "1 lançamento · R$ 12,50 em gastos"), (
+            day.GetProperty("label").GetString(), day.GetProperty("totalCents").GetInt32(), list.Body.GetProperty("summary").GetString()));
+        Assert.Equal(["items", "groups", "page", "perPage", "total", "totalPages", "summary"], list.Body.EnumerateObject().Select(p => p.Name));
+
+        var edited = await Send(HttpMethod.Patch, $"/api/transactions/{id}", new { note = (string?)null, amountCents = 99 });
+        Assert.Equal((JsonValueKind.Null, 99), (edited.Body.GetProperty("note").ValueKind, edited.Body.GetProperty("amountCents").GetInt32()));
+        Assert.Equal(HttpStatusCode.BadRequest, (await Send(HttpMethod.Patch, $"/api/transactions/{id}", new { type = "INCOME" })).Status);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(HttpMethod.Delete, $"/api/transactions/{id}")).Status);
+        Assert.Equal("Lançamento não encontrado.", (await Send(HttpMethod.Delete, $"/api/transactions/{id}")).Body.GetProperty("message").GetString());
     }
 
     [Fact]

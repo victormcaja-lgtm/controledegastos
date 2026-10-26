@@ -1,6 +1,7 @@
 using Grana.Api.Http;
 using Grana.Api.Validation;
 using Grana.Application.Finance;
+using Grana.Domain.Common;
 using Grana.Domain.Finance;
 
 namespace Grana.Api.Endpoints;
@@ -98,6 +99,58 @@ public static class FinanceEndpoints
             return Results.NoContent();
         });
     }
+
+    public static void MapTransactions(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/transactions", new RouteSchemas(Query: RequestSchemas.ListTransactionsQuery), async request =>
+        {
+            var query = request.Query;
+            var type = query.TextOrNull("type");
+            var month = query.TextOrNull("month");
+            var filter = new TransactionFilter(
+                request.Actor.UserId,
+                month is null ? null : MonthRef.Parse(month),
+                query.TextOrNull("categoryId"),
+                type is null ? null : ParseEntryType(type),
+                query.TextOrNull("search"),
+                query.SafeInteger("page"),
+                query.SafeInteger("perPage"));
+            return Results.Json(await Use<TransactionUseCases>(request).ListAsync(filter, request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("POST", "/api/transactions", new RouteSchemas(Body: RequestSchemas.CreateTransactionRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateTransactionCommand(
+                ParseEntryType(body.Text("type")),
+                body.Int32Column("amountCents"),
+                body.Text("categoryId"),
+                body.Text("occurredOn"),
+                body.TextOrNull("note"));
+            var created = await Use<TransactionUseCases>(request).CreateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("PATCH", "/api/transactions/{id}", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.UpdateTransactionRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new UpdateTransactionCommand(
+                body.OptionalInt32Column("amountCents"),
+                body.OptionalText("categoryId"),
+                body.OptionalText("occurredOn"),
+                body.OptionalTextOrNull("note"));
+            return Results.Json(await Use<TransactionUseCases>(request)
+                .UpdateAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/transactions/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<TransactionUseCases>(request).DeleteAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+    }
+
+    private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;
 
     private static T Use<T>(NativeRequest request)
         where T : notnull => request.Services.GetRequiredService<T>();

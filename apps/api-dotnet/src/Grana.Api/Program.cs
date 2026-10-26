@@ -28,6 +28,7 @@ builder.Services.AddSingleton<MatcherPolicy, ExactPathPolicy>();
 builder.Services.AddScoped<SettingsUseCases>();
 builder.Services.AddScoped<IncomeUseCases>();
 builder.Services.AddScoped<CategoryUseCases>();
+builder.Services.AddScoped<TransactionUseCases>();
 
 if (settings.NodeUpstreamUrl is { Length: > 0 } upstream) builder.Services.AddNodeFallback(upstream);
 
@@ -40,6 +41,7 @@ app.MapHealth();
 if (settings.IsNative("Settings")) app.MapSettings();
 if (settings.IsNative("Incomes")) app.MapIncomes();
 if (settings.IsNative("Categories")) app.MapCategories();
+if (settings.IsNative("Transactions")) app.MapTransactions();
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);

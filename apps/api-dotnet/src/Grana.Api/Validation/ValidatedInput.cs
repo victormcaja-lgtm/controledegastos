@@ -22,6 +22,9 @@ public static class ValidatedInput
     /// </summary>
     public static int Int32Column(this JsObject data, string key) => ToInt32(((JsNumber)Require(data, key)).Value);
 
+    /// <summary>Inteiro seguro do JavaScript (até 2⁵³−1), como <c>page</c> e <c>perPage</c>.</summary>
+    public static long SafeInteger(this JsObject data, string key) => (long)((JsNumber)Require(data, key)).Value;
+
     public static Patch<string> OptionalText(this JsObject data, string key) =>
         Has(data, key) ? Patch.Set(data.Text(key)) : default;
 

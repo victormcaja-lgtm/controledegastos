@@ -47,9 +47,9 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-021 | Domínio `Transaction` e `TransactionGrouping` (Hoje/Ontem em UTC, `summary`) | RN-080–087 | Unidade ≥ 90% |
-| T-022 | Endpoints `/api/transactions` (listar com filtros e paginação, criar, editar, excluir) | RF-05.2 | Pq 05 verde contra o .NET |
-| T-023 | Testes cruzados de lançamentos | RNF-02 | Verde |
+| T-021 | Domínio `Transaction` e `TransactionGrouping` (Hoje/Ontem em UTC, `summary`) | RN-080–087 | Unidade ≥ 90% — **Feita** |
+| T-022 | Endpoints `/api/transactions` (listar com filtros e paginação, criar, editar, excluir) | RF-05.2 | Pq 05 verde contra o .NET — **Feita:** suíte 155/155 com `Transactions` em `dotnet` |
+| T-023 | Testes cruzados de lançamentos | RNF-02 | Verde — **Feita:** `m2.cruzado.test.ts` (3 testes, inclui a forma da linha) |
 | T-028 | Validação de dados em homologação | §7.1 | 0 diferenças |
 | T-029 | Virar `Transactions=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

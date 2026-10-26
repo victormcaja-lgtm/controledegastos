@@ -14,7 +14,7 @@ public sealed record GranaSettings
     /// variável <c>Strangler__Modules__&lt;Módulo&gt;</c>. Voltar um módulo para o Node
     /// é trocar a variável e reiniciar.
     /// </summary>
-    public static readonly IReadOnlyList<string> Modules = ["Settings", "Incomes", "Categories"];
+    public static readonly IReadOnlyList<string> Modules = ["Settings", "Incomes", "Categories", "Transactions"];
 
     public required string Environment { get; init; }
 
