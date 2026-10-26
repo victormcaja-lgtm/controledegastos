@@ -133,35 +133,3 @@ public sealed class EfGoalRepository(GranaDbContext db) : IGoalRepository
         Goal.Restore(row.Id, row.UserId, row.Name, row.TargetCents, row.SavedCents, row.Featured,
             [.. row.Deposits.Select(deposit => new GoalDeposit(deposit.Id, deposit.AmountCents, deposit.CreatedAt))]);
 }
-
-/// <summary>Contas fixas — por ora só a criação (conversão de dívida, RN-108).</summary>
-public sealed class EfBillRepository(GranaDbContext db) : IBillRepository
-{
-    public async Task AddAsync(Bill bill, DateTime nowUtc, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(bill);
-        db.Bills.Add(new BillRow
-        {
-            Id = bill.Id,
-            UserId = bill.UserId,
-            CategoryId = bill.Category.Id,
-            Name = bill.Name,
-            AmountCents = bill.AmountCents,
-            DueDay = bill.DueDay,
-            Active = bill.Active,
-            StartMonth = bill.StartMonth.Start,
-            TotalInstallments = bill.TotalInstallments,
-            CreatedAt = nowUtc,
-            UpdatedAt = nowUtc,
-        });
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public static Bill ToDomain(BillRow row)
-    {
-        var category = row.Category ?? throw new InvalidOperationException($"Conta {row.Id} sem categoria carregada.");
-        return Bill.Restore(row.Id, row.UserId,
-            new CategoryRef(category.Id, category.Name, category.Color, category.Kind == CategoryKindDb.INCOME ? CategoryKind.Income : CategoryKind.Expense),
-            row.Name, row.AmountCents, row.DueDay, row.Active, MonthRef.Of(row.StartMonth), row.TotalInstallments);
-    }
-}

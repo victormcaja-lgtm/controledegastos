@@ -38,11 +38,6 @@ public interface IGoalRepository
     Task AddDepositAsync(string userId, string goalId, string depositId, int amountCents, DateTime nowUtc, CancellationToken cancellationToken);
 }
 
-public interface IBillRepository
-{
-    Task AddAsync(Bill bill, DateTime nowUtc, CancellationToken cancellationToken);
-}
-
 public sealed record DebtDto(
     string Id, string Name, int InstallmentCents, int PaidInstallments, int TotalInstallments,
     int RemainingInstallments, long RemainingCents, int ProgressPercent, bool Settled)
@@ -70,22 +65,6 @@ public sealed record GoalDto(
         ArgumentNullException.ThrowIfNull(goal);
         return new(goal.Id, goal.Name, goal.TargetCents, goal.SavedCents, goal.RemainingCents, goal.ProgressPercent, goal.Achieved, goal.Featured,
             [.. goal.Deposits.Select(deposit => new GoalDepositDto(deposit.Id, deposit.AmountCents, deposit.CreatedAt))]);
-    }
-}
-
-/// <summary>Conta fixa numa competência (<c>toBillDTO</c>).</summary>
-public sealed record BillDto(
-    string Id, string Name, int AmountCents, int DueDay, bool Active, CategoryRefDto Category,
-    bool Paid, bool Waived, DateTime? PaidAt, DateOnly DueDate, int? TotalInstallments, int? InstallmentNumber)
-{
-    /// <summary>Competência sem baixa: nem paga, nem dispensada.</summary>
-    public static BillDto Unpaid(Bill bill, MonthRef month)
-    {
-        ArgumentNullException.ThrowIfNull(bill);
-        var category = bill.Category;
-        return new(bill.Id, bill.Name, bill.AmountCents, bill.DueDay, bill.Active,
-            new CategoryRefDto(category.Id, category.Name, category.Color, CategoryDto.KindName(category.Kind)),
-            Paid: false, Waived: false, PaidAt: null, bill.DueDate(month), bill.TotalInstallments, bill.InstallmentNumber(month));
     }
 }
 

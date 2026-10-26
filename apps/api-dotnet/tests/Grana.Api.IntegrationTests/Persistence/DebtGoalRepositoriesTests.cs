@@ -7,8 +7,8 @@ using Testcontainers.PostgreSql;
 
 namespace Grana.Api.IntegrationTests.Persistence;
 
-/// <summary>Repositórios do M3 contra o schema do Prisma: ordem, extrato de 10, destaque, depósito e conta.</summary>
-public sealed class DebtGoalBillRepositoriesTests : IAsyncLifetime
+/// <summary>Repositórios do M3 contra o schema do Prisma: ordem, extrato de 10, destaque e depósito.</summary>
+public sealed class DebtGoalRepositoriesTests : IAsyncLifetime
 {
     private static readonly DateTime Now = new(2026, 10, 26, 12, 0, 0, 0, DateTimeKind.Utc);
 
@@ -118,27 +118,6 @@ public sealed class DebtGoalBillRepositoriesTests : IAsyncLifetime
             await repository.DeleteAsync("u1", "g1", CancellationToken.None);
             Assert.Null(await repository.FindByIdAsync("u1", "g1", CancellationToken.None));
             Assert.Equal(0, await db.GoalDeposits.CountAsync(d => d.GoalId == "g1"));
-        }
-    }
-
-    [Fact]
-    public async Task Conta_criada_pela_conversao_e_lida_de_volta()
-    {
-        var house = Category.Restore("casa", "u1", "Casa", "x", CategoryKind.Expense, false, null);
-        var bill = Bill.FromDebt("b1", Debt.Create("d", "u1", "Sofá", 25000, 4, 10), house, 15, MonthRef.Parse("2026-10"));
-        await using (var db = NewContext())
-        {
-            await new EfBillRepository(db).AddAsync(bill, Now, CancellationToken.None);
-        }
-
-        await using (var db = NewContext())
-        {
-            var row = await db.Bills.AsNoTracking().Include(b => b.Category).SingleAsync(b => b.Id == "b1");
-            Assert.Equal((new DateOnly(2026, 10, 1), (int?)6, true, Now), (row.StartMonth, row.TotalInstallments, row.Active, row.CreatedAt));
-            var restored = EfBillRepository.ToDomain(row);
-            Assert.Equal((bill.Name, bill.StartMonth, bill.Category), (restored.Name, restored.StartMonth, restored.Category));
-            row.Category = null;
-            Assert.Throws<InvalidOperationException>(() => EfBillRepository.ToDomain(row));
         }
     }
 }

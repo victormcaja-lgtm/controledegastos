@@ -224,6 +224,58 @@ public static class FinanceEndpoints
                 .DepositAsync(request.Actor, request.Params.Text("id"), request.Body.Int32Column("amountCents"), request.CancellationToken).ConfigureAwait(false)));
     }
 
+    public static void MapBills(this IEndpointRouteBuilder routes)
+    {
+        routes.MapAuthenticated("GET", "/api/bills", new RouteSchemas(Query: RequestSchemas.MonthQuery), async request =>
+            Results.Json(await Use<BillUseCases>(request).OverviewAsync(request.Actor, OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("GET", "/api/bills/overdue", new RouteSchemas(Query: RequestSchemas.TodayQuery), async request =>
+            Results.Json(await Use<BillUseCases>(request).OverdueAsync(request.Actor, request.Query.TextOrNull("today"), request.CancellationToken).ConfigureAwait(false)));
+
+        routes.MapAuthenticated("POST", "/api/bills", new RouteSchemas(Body: RequestSchemas.CreateBillRequest), async request =>
+        {
+            var body = request.Body;
+            var command = new CreateBillCommand(
+                body.Text("name"), body.Text("categoryId"), body.Int32Column("amountCents"), body.Int32Column("dueDay"),
+                body.OptionalInt32ColumnOrNull("totalInstallments").Or(null));
+            var created = await Use<BillUseCases>(request).CreateAsync(request.Actor, command, request.CancellationToken).ConfigureAwait(false);
+            return Results.Json(created, statusCode: StatusCodes.Status201Created);
+        });
+
+        routes.MapAuthenticated("PATCH", "/api/bills/{id}", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.UpdateBillRequest, RequestSchemas.MonthQuery), async request =>
+        {
+            var body = request.Body;
+            var command = new UpdateBillCommand(
+                body.OptionalText("name"),
+                body.OptionalText("categoryId"),
+                body.OptionalInt32Column("amountCents"),
+                body.OptionalInt32Column("dueDay"),
+                body.OptionalFlag("active"),
+                body.OptionalInt32ColumnOrNull("totalInstallments"));
+            return Results.Json(await Use<BillUseCases>(request)
+                .UpdateAsync(request.Actor, request.Params.Text("id"), command, OptionalMonth(request.Query), request.CancellationToken).ConfigureAwait(false));
+        });
+
+        routes.MapAuthenticated("DELETE", "/api/bills/{id}", new RouteSchemas(RequestSchemas.IdParams), async request =>
+        {
+            await Use<BillUseCases>(request).DeleteAsync(request.Actor, request.Params.Text("id"), request.CancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        });
+
+        routes.MapAuthenticated("PUT", "/api/bills/{id}/payment", new RouteSchemas(RequestSchemas.IdParams, RequestSchemas.SetBillPaymentRequest), async request =>
+        {
+            var body = request.Body;
+            var waived = body.OptionalFlag("waived");
+            var amount = body.OptionalInt32Column("amountCents");
+            var command = new SetBillPaymentCommand(
+                MonthRef.Parse(body.Text("month")), body.Flag("paid"), waived.IsSet ? waived.Value : null, amount.IsSet ? amount.Value : null);
+            return Results.Json(await Use<BillUseCases>(request)
+                .SetPaymentAsync(request.Actor, request.Params.Text("id"), command, request.CancellationToken).ConfigureAwait(false));
+        });
+    }
+
+    private static MonthRef? OptionalMonth(JsObject query) => query.TextOrNull("month") is { } month ? MonthRef.Parse(month) : null;
+
     private static EntryType ParseEntryType(string value) => value == "INCOME" ? EntryType.Income : EntryType.Expense;
 
     private static T Use<T>(NativeRequest request)

@@ -1,5 +1,6 @@
 using Grana.Application.Common;
 using Grana.Application.Finance;
+using Grana.Domain.Common;
 using Grana.Domain.Finance;
 
 namespace Grana.Application.Tests.Finance;
@@ -102,6 +103,57 @@ internal sealed class InMemorySettings : IUserSettingsRepository
     public Task SaveAsync(UserSettings settings, DateTime nowUtc, CancellationToken cancellationToken)
     {
         Rows[settings.UserId] = settings;
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class InMemoryBills : IBillRepository
+{
+    public List<Bill> Items { get; } = [];
+
+    public List<(string UserId, BillPayment Payment)> Payments { get; } = [];
+
+    public Task<IReadOnlyList<Bill>> ListAllAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Bill>>([.. Items.Where(b => b.UserId == userId).OrderByDescending(b => b.Active).ThenBy(b => b.DueDay)]);
+
+    public Task<IReadOnlyList<Bill>> ListActiveAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Bill>>([.. Items.Where(b => b.UserId == userId && b.Active).OrderBy(b => b.DueDay)]);
+
+    public Task<Bill?> FindByIdAsync(string userId, string id, CancellationToken cancellationToken) =>
+        Task.FromResult(Items.FirstOrDefault(b => b.UserId == userId && b.Id == id));
+
+    public Task AddAsync(Bill bill, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        Items.Add(bill);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Bill bill, DateTime nowUtc, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task DeleteAsync(string userId, string id, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(b => b.UserId == userId && b.Id == id);
+        Payments.RemoveAll(p => p.Payment.BillId == id);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<BillPayment>> PaymentsForMonthAsync(string userId, MonthRef month, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<BillPayment>>([.. Payments.Where(p => p.UserId == userId && p.Payment.Month == month).Select(p => p.Payment)]);
+
+    public Task<IReadOnlyList<BillPayment>> PaymentsSinceAsync(string userId, MonthRef month, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<BillPayment>>([.. Payments.Where(p => p.UserId == userId && p.Payment.Month >= month).Select(p => p.Payment)]);
+
+    public Task MarkPaidAsync(
+        string userId, string billId, MonthRef month, int amountCents, BillPaymentStatus status, string newPaymentId, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        Payments.RemoveAll(p => p.Payment.BillId == billId && p.Payment.Month == month);
+        Payments.Add((userId, new BillPayment(billId, month, status, amountCents, nowUtc)));
+        return Task.CompletedTask;
+    }
+
+    public Task MarkUnpaidAsync(string userId, string billId, MonthRef month, CancellationToken cancellationToken)
+    {
+        Payments.RemoveAll(p => p.UserId == userId && p.Payment.BillId == billId && p.Payment.Month == month);
         return Task.CompletedTask;
     }
 }

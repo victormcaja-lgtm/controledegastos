@@ -70,9 +70,9 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-041 | Domínio `Bill` + `BillPayment` (vigência, parcela, baixa/dispensa/desfazer), `BillsCalendar`, `OverdueBillsFinder` | RN-090–101 | Unidade ≥ 90% (inclui os casos de `findOverdueBills`) |
-| T-042 | Endpoints `/api/bills`, `/api/bills/overdue`, `/api/bills/:id/payment` | RF-05.3 | Pq 06 verde contra o .NET |
-| T-043 | Testes cruzados | RNF-02 | Verde |
+| T-041 | Domínio `Bill` + `BillPayment` (vigência, parcela, baixa/dispensa/desfazer), `BillsCalendar`, `OverdueBillsFinder` | RN-090–101 | Unidade ≥ 90% (inclui os casos de `findOverdueBills`) — **Feita** |
+| T-042 | Endpoints `/api/bills`, `/api/bills/overdue`, `/api/bills/:id/payment` | RF-05.3 | Pq 06 verde contra o .NET — **Feita:** suíte 155/155 com `Bills` em `dotnet` |
+| T-043 | Testes cruzados | RNF-02 | Verde — **Feita:** `m4.cruzado.test.ts` (visão do mês em 5 competências, atrasadas, forma das linhas) |
 | T-048 | Validação de dados | §7.1 | 0 diferenças |
 | T-049 | Virar `Bills=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

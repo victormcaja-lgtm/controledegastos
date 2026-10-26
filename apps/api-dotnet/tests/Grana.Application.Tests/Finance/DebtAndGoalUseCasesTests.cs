@@ -160,14 +160,3 @@ internal sealed class InMemoryGoals : IGoalRepository
     private static Goal Snapshot((Goal Goal, List<GoalDeposit> Deposits) row) =>
         Goal.Restore(row.Goal.Id, row.Goal.UserId, row.Goal.Name, row.Goal.TargetCents, row.Goal.SavedCents, row.Goal.Featured, [.. row.Deposits]);
 }
-
-internal sealed class InMemoryBills : IBillRepository
-{
-    public List<Bill> Items { get; } = [];
-
-    public Task AddAsync(Bill bill, DateTime nowUtc, CancellationToken cancellationToken)
-    {
-        Items.Add(bill);
-        return Task.CompletedTask;
-    }
-}
