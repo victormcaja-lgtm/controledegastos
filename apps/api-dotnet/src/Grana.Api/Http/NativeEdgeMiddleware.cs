@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Grana.Api.Hosting;
 using Grana.Domain.Common;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Grana.Api.Http;
 
@@ -12,7 +14,8 @@ public sealed class NativeEndpointMetadata;
 /// <c>app.ts</c>: helmet (cabeçalhos de segurança), cors e o tratador de erros.
 /// Rotas repassadas ao Node não passam por aqui: o Node já faz tudo isso (plano.md §6.1).
 /// </summary>
-public sealed partial class NativeEdgeMiddleware(RequestDelegate next, GranaSettings settings, ILogger<NativeEdgeMiddleware> logger)
+public sealed partial class NativeEdgeMiddleware(
+    RequestDelegate next, GranaSettings settings, RateLimiter rateLimiter, ILogger<NativeEdgeMiddleware> logger)
 {
     // helmet 8 com as opções de app.ts (CSP só em produção; sem COEP).
     private const string ContentSecurityPolicy =
@@ -34,12 +37,23 @@ public sealed partial class NativeEdgeMiddleware(RequestDelegate next, GranaSett
 
         try
         {
+            // Mesma ordem dos hooks onRequest do Fastify: cors, depois rate limit.
             ApplyCors(context);
+            ApplyRateLimit(context);
             await next(context).ConfigureAwait(false);
         }
         catch (DomainError error)
         {
             await ErrorEnvelope.WriteDomainErrorAsync(context, error).ConfigureAwait(false);
+        }
+        catch (HttpError error)
+        {
+            await ErrorEnvelope.WriteAsync(context, error.StatusCode, error.Error, error.Code, error.Message, error.Details).ConfigureAwait(false);
+        }
+        catch (DbUpdateException error) when (error.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // P2002 no Node (RN-010).
+            await ErrorEnvelope.WriteAsync(context, 409, "Conflict", "CONFLICT", "Já existe um registro com esses dados.").ConfigureAwait(false);
         }
         catch (Exception exception) when (!context.Response.HasStarted)
         {
@@ -82,6 +96,14 @@ public sealed partial class NativeEdgeMiddleware(RequestDelegate next, GranaSett
                       (!settings.IsProduction && VercelPreview().IsMatch(normalized));
         if (!allowed) throw new CorsRejectedException(origin);
         headers.AccessControlAllowOrigin = origin;
+    }
+
+    private void ApplyRateLimit(HttpContext context)
+    {
+        if (context.GetEndpoint()?.Metadata.GetMetadata<NoRateLimitMetadata>() is not null) return;
+        var decision = rateLimiter.Hit(ClientIp.Of(context, settings.TrustProxyHops));
+        decision.WriteHeaders(context.Response.Headers, rateLimiter.Max);
+        if (!decision.Allowed) throw decision.ToError();
     }
 
     [GeneratedRegex(@"^https://[a-z0-9-]+\.vercel\.app\z")]

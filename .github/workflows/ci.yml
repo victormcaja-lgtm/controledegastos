@@ -193,6 +193,31 @@ jobs:
         env:
           PARITY_BASE_URL: http://127.0.0.1:3335
 
+      # Mesma suíte com os módulos migrados atendidos pelo .NET (plano.md §6.2):
+      # a fachada precisa passar nos dois estados de cada chave.
+      - name: Subir a fachada .NET com o M1 em dotnet
+        working-directory: apps/api-dotnet
+        env:
+          NODE_ENV: production
+          PORT: '3336'
+          HOST: 127.0.0.1
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+          NODE_UPSTREAM_URL: http://127.0.0.1:3334
+          CORS_ORIGINS: http://localhost:5173
+          JWT_ACCESS_SECRET: paridade-segredo-de-acesso-com-mais-de-32-caracteres
+          Strangler__Modules__Settings: dotnet
+          Strangler__Modules__Incomes: dotnet
+          Strangler__Modules__Categories: dotnet
+        run: |
+          dotnet run --project src/Grana.Api -c Release --no-build > ../../fachada-m1.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:3336/health && exit 0; sleep 2; done
+          cat ../../fachada-m1.log; exit 1
+
+      - name: Testes de paridade (fachada .NET, M1 em dotnet)
+        run: npm run test:paridade -w @grana/paridade
+        env:
+          PARITY_BASE_URL: http://127.0.0.1:3336
+
       - name: Logs
         if: failure()
-        run: cat api.log fachada.log || true
+        run: cat api.log fachada.log fachada-m1.log || true

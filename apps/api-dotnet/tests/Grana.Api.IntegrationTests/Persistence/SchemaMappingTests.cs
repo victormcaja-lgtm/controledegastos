@@ -163,7 +163,7 @@ public sealed class SchemaMappingTests : IAsyncLifetime
         Assert.Equal("false|0", await ScalarAsync("""SELECT "mustChangePassword"::text || '|' || "failedLoginAttempts" FROM "users" WHERE id='u2'"""));
     }
 
-    private static string RepoRoot()
+    internal static string RepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "apps", "api", "prisma", "migrations")))

@@ -25,5 +25,5 @@ public static class HealthEndpoint
                     database = "up",
                 });
             })
-            .WithMetadata(new NativeEndpointMetadata());
+            .WithMetadata(new NativeEndpointMetadata(), new NoRateLimitMetadata());
 }

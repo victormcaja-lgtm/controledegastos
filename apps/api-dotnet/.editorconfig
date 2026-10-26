@@ -19,5 +19,5 @@ dotnet_diagnostic.CA1720.severity = none
 
 # O nome da classe de erro vai para o campo "error" da resposta ("NotFoundError"):
 # precisa ser igual ao da API Node, então não pode terminar em "Exception".
-[src/Grana.Domain/Common/DomainErrors.cs]
+[{src/Grana.Domain/Common/DomainErrors.cs,src/Grana.Api/Http/HttpError.cs}]
 dotnet_diagnostic.CA1710.severity = none

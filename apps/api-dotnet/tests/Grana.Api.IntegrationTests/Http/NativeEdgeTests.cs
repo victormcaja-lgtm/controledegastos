@@ -12,6 +12,7 @@ namespace Grana.Api.IntegrationTests.Http;
 /// Node em modo produção (tests/paridade/specs/01 e 12). Sem banco nem Node: o
 /// health check usa uma porta falsa e não há fachada configurada.
 /// </summary>
+[Collection(SerialApi.Name)]
 public sealed class NativeEdgeTests : IClassFixture<NativeEdgeTests.Api>
 {
     private readonly Api _api;

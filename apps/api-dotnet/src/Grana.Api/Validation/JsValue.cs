@@ -23,8 +23,30 @@ public abstract record JsValue
         JsonValueKind.Number => new JsNumber(element.GetDouble()),
         JsonValueKind.String => new JsString(element.GetString()!),
         JsonValueKind.Array => new JsArray([.. element.EnumerateArray().Select(FromJson)]),
-        _ => new JsObject([.. element.EnumerateObject().Select(p => new KeyValuePair<string, JsValue>(p.Name, FromJson(p.Value)))]),
+        _ => ObjectFromJson(element),
     };
+
+    /// <summary>Chave repetida: vale o ÚLTIMO valor, na posição da primeira (como o <c>JSON.parse</c>).</summary>
+    private static JsObject ObjectFromJson(JsonElement element)
+    {
+        var properties = new List<KeyValuePair<string, JsValue>>();
+        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var property in element.EnumerateObject())
+        {
+            var value = FromJson(property.Value);
+            if (positions.TryGetValue(property.Name, out var index))
+            {
+                properties[index] = new(property.Name, value);
+            }
+            else
+            {
+                positions[property.Name] = properties.Count;
+                properties.Add(new(property.Name, value));
+            }
+        }
+
+        return new JsObject(properties);
+    }
 
     /// <summary>Converte para JSON; <c>undefined</c> some (como no <c>JSON.stringify</c>).</summary>
     public abstract JsonNode? ToJsonNode();

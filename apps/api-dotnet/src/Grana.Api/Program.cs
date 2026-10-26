@@ -3,9 +3,9 @@ using Grana.Api.Hosting;
 using Grana.Api.Http;
 using Grana.Api.Json;
 using Grana.Api.Strangler;
-using Grana.Application.Health;
-using Grana.Infrastructure.Database;
-using Npgsql;
+using Grana.Application.Finance;
+using Grana.Infrastructure;
+using Microsoft.AspNetCore.Routing.Matching;
 
 var settings = GranaSettings.FromEnvironment(Environment.GetEnvironmentVariable);
 
@@ -15,13 +15,19 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     // O Node não envia "Server"; corpo de até 1 MB como no Fastify (RN-017).
     options.AddServerHeader = false;
-    options.Limits.MaxRequestBodySize = 1_048_576;
+    options.Limits.MaxRequestBodySize = RequestBody.Limit;
 });
 
 builder.Services.AddSingleton(settings);
 builder.Services.ConfigureHttpJsonOptions(options => GranaJson.Configure(options.SerializerOptions));
-builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(DatabaseUrl.ToConnectionString(settings.DatabaseUrl)));
-builder.Services.AddSingleton<IDatabaseHealth, PostgresHealth>();
+builder.Services.AddGranaInfrastructure(settings.DatabaseUrl);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(services => new RateLimiter(settings.RateLimitMax, TimeSpan.FromMinutes(1), services.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton(services => new AccessToken(settings.JwtAccessSecret ?? string.Empty, services.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton<MatcherPolicy, ExactPathPolicy>();
+builder.Services.AddScoped<SettingsUseCases>();
+builder.Services.AddScoped<IncomeUseCases>();
+builder.Services.AddScoped<CategoryUseCases>();
 
 if (settings.NodeUpstreamUrl is { Length: > 0 } upstream) builder.Services.AddNodeFallback(upstream);
 
@@ -31,6 +37,9 @@ app.UseRouting();
 app.UseMiddleware<NativeEdgeMiddleware>();
 
 app.MapHealth();
+if (settings.IsNative("Settings")) app.MapSettings();
+if (settings.IsNative("Incomes")) app.MapIncomes();
+if (settings.IsNative("Categories")) app.MapCategories();
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);
