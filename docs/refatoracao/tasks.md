@@ -108,10 +108,10 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 
 | ID | Tarefa | Rastreio | Pronto quando |
 |---|---|---|---|
-| T-081 | Domínio `User`, `Session`, `Email`; hash Argon2id PHC (Isopoh) com *dummy hash*; emissão de JWT sem `iss` e refresh opaco | RN-030–046, R-01, R-02 | Unidade ≥ 90%; teste que verifica um hash gerado pelo Node |
-| T-082 | Endpoints `/api/auth/*` (login, cadastro, refresh, logout, me, senha), cookie e rate limits por rota | RF-03 | Pq 02, 04 verdes contra o .NET |
-| T-083 | Endpoints `/api/admin/users*` e provisionamento do espaço financeiro | RF-04 | Pq 03 verde contra o .NET |
-| T-084 | Testes cruzados de sessão: login no .NET → refresh no Node e vice-versa; hash gravado pelo .NET verificado pelo Node | RNF-02 | Verde |
+| T-081 | Domínio `User`, `Session`, `Email`; hash Argon2id PHC (Isopoh) com *dummy hash*; emissão de JWT sem `iss` e refresh opaco | RN-030–046, R-01, R-02 | Unidade ≥ 90%; teste que verifica um hash gerado pelo Node — **Feita** |
+| T-082 | Endpoints `/api/auth/*` (login, cadastro, refresh, logout, me, senha), cookie e rate limits por rota | RF-03 | Pq 02, 04 verdes contra o .NET — **Feita:** suíte 155/155 com `Identity` em `dotnet`; cookie, token e rate limit por rota no formato do Node |
+| T-083 | Endpoints `/api/admin/users*` e provisionamento do espaço financeiro | RF-04 | Pq 03 verde contra o .NET — **Feita** |
+| T-084 | Testes cruzados de sessão: login no .NET → refresh no Node e vice-versa; hash gravado pelo .NET verificado pelo Node | RNF-02 | Verde — **Feita:** `m8.cruzado.test.ts` (5 testes: refresh em cadeia entre os dois, cookies iguais, hashes cruzados, admin e bloqueio alternando backends, forma das linhas) |
 | T-088 | Validação de dados (usuários, sessões, auditoria) | §7.1 | 0 diferenças |
 | T-089 | Virar `Identity=dotnet`, monitorar e ensaiar rollback | §6.2, §8 | Idem T-019 |
 

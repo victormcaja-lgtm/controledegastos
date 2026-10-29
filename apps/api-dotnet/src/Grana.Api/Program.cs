@@ -4,6 +4,7 @@ using Grana.Api.Http;
 using Grana.Api.Json;
 using Grana.Api.Strangler;
 using Grana.Application.Finance;
+using Grana.Application.Identity;
 using Grana.Infrastructure;
 using Microsoft.AspNetCore.Routing.Matching;
 
@@ -20,10 +21,13 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddSingleton(settings);
 builder.Services.ConfigureHttpJsonOptions(options => GranaJson.Configure(options.SerializerOptions));
-builder.Services.AddGranaInfrastructure(settings.DatabaseUrl);
+builder.Services.AddGranaInfrastructure(
+    settings.DatabaseUrl,
+    settings.JwtAccessSecret is { } secret ? new TokenOptions(secret, settings.AccessTokenTtl, settings.RefreshTokenTtlDays) : null);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(services => new RateLimiter(settings.RateLimitMax, TimeSpan.FromMinutes(1), services.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton(services => new AccessToken(settings.JwtAccessSecret ?? string.Empty, services.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton<RouteRateLimiters>();
 builder.Services.AddSingleton<MatcherPolicy, ExactPathPolicy>();
 builder.Services.AddScoped<SettingsUseCases>();
 builder.Services.AddScoped<IncomeUseCases>();
@@ -35,6 +39,12 @@ builder.Services.AddScoped<BillUseCases>();
 builder.Services.AddScoped<CardUseCases>();
 builder.Services.AddScoped<DashboardUseCases>();
 builder.Services.AddScoped<CashflowUseCases>();
+if (settings.JwtAccessSecret is not null)
+{
+    // Emitem tokens: só existem com o segredo configurado (a fachada só de repasse não precisa dele).
+    builder.Services.AddScoped<AuthUseCases>();
+    builder.Services.AddScoped<AdminUserUseCases>();
+}
 
 if (settings.NodeUpstreamUrl is { Length: > 0 } upstream) builder.Services.AddNodeFallback(upstream);
 
@@ -54,6 +64,7 @@ if (settings.IsNative("Bills")) app.MapBills();
 if (settings.IsNative("Cards")) app.MapCards();
 if (settings.IsNative("Dashboard")) app.MapDashboard();
 if (settings.IsNative("Cashflow")) app.MapCashflow();
+if (settings.IsNative("Identity")) app.MapIdentity(settings);
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
 
 await app.RunAsync().ConfigureAwait(false);

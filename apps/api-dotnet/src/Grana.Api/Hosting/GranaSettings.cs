@@ -14,7 +14,7 @@ public sealed record GranaSettings
     /// variável <c>Strangler__Modules__&lt;Módulo&gt;</c>. Voltar um módulo para o Node
     /// é trocar a variável e reiniciar.
     /// </summary>
-    public static readonly IReadOnlyList<string> Modules = ["Settings", "Incomes", "Categories", "Transactions", "Debts", "Goals", "Bills", "Cards", "Dashboard", "Cashflow"];
+    public static readonly IReadOnlyList<string> Modules = ["Settings", "Incomes", "Categories", "Transactions", "Debts", "Goals", "Bills", "Cards", "Dashboard", "Cashflow", "Identity"];
 
     public required string Environment { get; init; }
 
@@ -39,6 +39,17 @@ public sealed record GranaSettings
 
     /// <summary>Saltos de proxy confiáveis no <c>X-Forwarded-For</c> (RN-162, D-02).</summary>
     public int TrustProxyHops { get; init; } = 1;
+
+    /// <summary>Tentativas de login por IP a cada 15 minutos (RN-038).</summary>
+    public int LoginRateLimitMax { get; init; } = 8;
+
+    /// <summary>Vida do access token no formato da biblioteca <c>ms</c> (15m).</summary>
+    public string AccessTokenTtl { get; init; } = "15m";
+
+    public int RefreshTokenTtlDays { get; init; } = 7;
+
+    /// <summary>Domínio do cookie de refresh; sem ele, o cookie fica no host da API.</summary>
+    public string? CookieDomain { get; init; }
 
     /// <summary>Módulos atendidos pelo .NET.</summary>
     public IReadOnlySet<string> NativeModules { get; init; } = new HashSet<string>(StringComparer.Ordinal);
@@ -89,6 +100,10 @@ public sealed record GranaSettings
             JwtAccessSecret = secret,
             RateLimitMax = IntInRange(read, "RATE_LIMIT_MAX", 200, minimum: 10, maximum: int.MaxValue),
             TrustProxyHops = IntInRange(read, "TRUST_PROXY_HOPS", 1, minimum: 0, maximum: 10),
+            LoginRateLimitMax = IntInRange(read, "LOGIN_RATE_LIMIT_MAX", 8, minimum: 3, maximum: int.MaxValue),
+            AccessTokenTtl = string.IsNullOrWhiteSpace(read("ACCESS_TOKEN_TTL")) ? "15m" : read("ACCESS_TOKEN_TTL")!,
+            RefreshTokenTtlDays = IntInRange(read, "REFRESH_TOKEN_TTL_DAYS", 7, minimum: 1, maximum: 90),
+            CookieDomain = string.IsNullOrEmpty(read("COOKIE_DOMAIN")) ? null : read("COOKIE_DOMAIN"),
             NativeModules = native,
         };
     }

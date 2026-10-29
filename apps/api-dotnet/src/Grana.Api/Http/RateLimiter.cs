@@ -7,6 +7,24 @@ namespace Grana.Api.Http;
 public sealed class NoRateLimitMetadata;
 
 /// <summary>
+/// Limite próprio da rota (<c>config: { rateLimit: { max, timeWindow } }</c>): SUBSTITUI o
+/// global, com contadores só dela (login, cadastro, troca de senha — RN-038).
+/// </summary>
+public sealed record RouteRateLimitMetadata(string Key, int Max, TimeSpan Window);
+
+/// <summary>Um limitador por rota com limite próprio, criado no primeiro uso.</summary>
+public sealed class RouteRateLimiters(TimeProvider time)
+{
+    private readonly ConcurrentDictionary<string, RateLimiter> _limiters = new(StringComparer.Ordinal);
+
+    public RateLimiter For(RouteRateLimitMetadata policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        return _limiters.GetOrAdd(policy.Key, _ => new RateLimiter(policy.Max, policy.Window, time));
+    }
+}
+
+/// <summary>
 /// Rate limit global por IP — o <c>LocalStore</c> do <c>@fastify/rate-limit</c>: janela
 /// FIXA que começa na primeira requisição; o contador zera quando a janela vence.
 /// Conta toda requisição, inclusive as que terminam em 400 ou 401 (o plugin roda no

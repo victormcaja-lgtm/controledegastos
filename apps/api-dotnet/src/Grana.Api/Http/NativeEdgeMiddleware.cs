@@ -15,7 +15,7 @@ public sealed class NativeEndpointMetadata;
 /// Rotas repassadas ao Node não passam por aqui: o Node já faz tudo isso (plano.md §6.1).
 /// </summary>
 public sealed partial class NativeEdgeMiddleware(
-    RequestDelegate next, GranaSettings settings, RateLimiter rateLimiter, ILogger<NativeEdgeMiddleware> logger)
+    RequestDelegate next, GranaSettings settings, RateLimiter rateLimiter, RouteRateLimiters routeLimiters, ILogger<NativeEdgeMiddleware> logger)
 {
     // helmet 8 com as opções de app.ts (CSP só em produção; sem COEP).
     private const string ContentSecurityPolicy =
@@ -100,9 +100,12 @@ public sealed partial class NativeEdgeMiddleware(
 
     private void ApplyRateLimit(HttpContext context)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<NoRateLimitMetadata>() is not null) return;
-        var decision = rateLimiter.Hit(ClientIp.Of(context, settings.TrustProxyHops));
-        decision.WriteHeaders(context.Response.Headers, rateLimiter.Max);
+        var metadata = context.GetEndpoint()?.Metadata;
+        if (metadata?.GetMetadata<NoRateLimitMetadata>() is not null) return;
+        // Limite próprio da rota substitui o global (login, cadastro, troca de senha).
+        var limiter = metadata?.GetMetadata<RouteRateLimitMetadata>() is { } policy ? routeLimiters.For(policy) : rateLimiter;
+        var decision = limiter.Hit(ClientIp.Of(context, settings.TrustProxyHops));
+        decision.WriteHeaders(context.Response.Headers, limiter.Max);
         if (!decision.Allowed) throw decision.ToError();
     }
 
