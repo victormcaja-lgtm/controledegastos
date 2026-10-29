@@ -459,3 +459,44 @@ O modelo do pedido veio com campos não preenchidos. Para não inventar regra, p
 - **P5. Versão.** .NET 10 (LTS atual) está ok?
 - **P6. Comportamentos suspeitos.** Pode decidir agora (manter ou corrigir) os itens da seção 5 ou
   deixar para depois da paridade. Até lá, eles são reproduzidos.
+
+### 10.1 Respostas (2026-10-20)
+
+| # | Decisão |
+|---|---|
+| P1 | **Em aberto.** Não bloqueia: só muda prioridades. |
+| P2 | **Manter o front React** e só apontá-lo para a API .NET. Vale também para o app Flutter (`apps/mobile`, já em produção na `main`). |
+| P3 | **Mesmo banco e mesmo schema**, sem ETL. A migração de dados vira validação de leitura e escrita; rollback = rotear de volta para o Node. |
+| P4 | **Railway** para a API .NET. |
+| P5 | **.NET 10 LTS.** |
+| P6 | **Depois da paridade.** Os 22 itens ⚠️ são reproduzidos e fixados pelos testes de caracterização; cada correção entra só com aprovação explícita. |
+
+---
+
+## 11. Correções e achados da caracterização (Fase 2)
+
+A suíte `tests/paridade` (154 testes, caixa-preta contra a API em modo produção) confirmou a
+análise e corrigiu ou acrescentou estes pontos. **Eles valem mais que o texto das seções 4 e 5.**
+
+| Item | O que a API faz de verdade | Teste |
+|---|---|---|
+| RN-015 (correção) | O 429 de rate limit passa pelo tratador comum: `{statusCode:429, error:"Error", code:"RATE_LIMITED", message, requestId}` — com `requestId` e `error: "Error"`. | `04-rate-limit` |
+| RN-036 (correção) | O access token emitido **não tem `iss`** (a opção do `sign` substitui a padrão). A verificação aceita `iss` ausente ou `grana-api` e recusa outro emissor. Payload: `sub, email, role, iat, exp`. | `02-autenticacao`, `01-transversal` |
+| RN-008 (acréscimo) | A **validação do corpo vem antes da autenticação e da autorização**: sem token e corpo inválido → 400; usuário comum com corpo inválido na área de admin → 400, não 403. | `01-transversal`, `03-cadastro-admin` |
+| RN-008 (acréscimo) | Campo ausente e enum inválido saem com a mensagem **padrão, em inglês**, do validador (ex.: `Invalid input: expected number, received undefined`, `Invalid option: expected one of "EXPENSE"\|"INCOME"`). | `01-transversal` |
+| RN-008 (acréscimo) | Um campo pode trazer **mais de uma mensagem** em `details` (ex.: data `2026-1-1` → formato + "Data inexistente."). | `01-transversal` |
+| RN-015 (acréscimo) | O IP do rate limit vem do `X-Forwarded-For` (trustProxy). Os contadores ficam em memória e sobrevivem entre requisições de clientes diferentes. | `04-rate-limit` |
+| R-11 (acréscimo) | Colunas `TIMESTAMP(3)` sem fuso guardam **UTC**; um driver que assume o fuso local desloca as datas em 3h (confirmado com o `pg`). O Npgsql tem a mesma armadilha. | `src/db.ts` |
+| **RN-162 ⚠️ (novo, segurança)** | O IP do rate limit é o **mais à esquerda** do `X-Forwarded-For` (`trustProxy: true`, `app.ts:57`), valor que o cliente controla: trocando-o, burla-se qualquer rate limit por IP, inclusive o de login. O bloqueio por conta (5 falhas) continua valendo. **Corrigido pela D-02 (2026-10-20)**: ver `plano.md` §9. | `04-rate-limit` |
+| **RN-161 ⚠️ (novo)** | **Origem fora da allowlist de CORS → 500 genérico**, não 403. Em produção, os previews `*.vercel.app` caem nesse mesmo 500. | `12-borda` |
+| RN-002 ⚠️ (confirmado) | Valor > 2.147.483.647 centavos passa na validação e responde 500 genérico; 2.147.483.647 é aceito. | `11-ajustes` |
+| **RN-072 ⚠️ (novo, T-012)** | A checagem de nome repetido é um `name ILIKE $nome` **sem escape** (é o `mode: 'insensitive'` do Prisma): `_` e `%` no nome NOVO viram curinga. Com "Yyabc" cadastrada, criar "Y%" dá 409; renomear "Lazer" para "L_zer" dá 409 (casa com ela mesma). O .NET reproduz (`EF.Functions.ILike`). Impacto baixo; corrigir depois da paridade (escapar o nome). | sonda da T-012 |
+| **RN-084 ⚠️ (acréscimo, T-022)** | A busca de lançamentos é `note ILIKE '%' \|\| busca \|\| '%'` **sem escape** (`contains` do Prisma): `%` e `_` na busca viram curinga (`?search=%` traz todos com observação). Lançamento sem observação nunca aparece numa busca. `page` aceita até 2⁵³−1 e devolve a página vazia. O .NET reproduz. | sonda e `m2.cruzado` |
+| RN-101 (acréscimo, T-042) | Em `/bills/overdue`, o `today` da query é usado como **texto**: o mês vem do texto e a comparação "vence antes de hoje" é de strings; só `daysLate` usa a data rolada (`today=2026-02-31` → mês 02, atraso contado até 03/03). Com `today` a partir de `9998-11`, o carregador do saldo futuro monta uma data de 5 dígitos, o `Date` fica inválido e a resposta é **500** (se o saldo futuro estiver configurado). O .NET reproduz os dois. | `m4.cruzado`, testes de domínio |
+| RN-134/135 (acréscimo, T-052) | Nos cartões, todas as datas são comparadas como **texto** `AAAA-MM-DD`, inclusive o `?today` da listagem: `today=2026-02-31` com fechamento no dia 28 cai na fatura de março e deixa a de fevereiro CLOSED. A data da compra, ao contrário, é gravada rolada (31/02 → 03/03). O .NET reproduz. | `m5.cruzado`, testes de domínio |
+| RN-117 ⚠️ (acréscimo, T-062) | O "mês anterior" do relatório é montado **sem zeros à esquerda no ano**: para `month=1000-01` sai "999-12", competência inválida, e a resposta é **500**. O .NET reproduz. Diferença conhecida e não reproduzida: com competência de ano 0000–0099, o `Date.UTC` do Node consulta 1900–1999 (o .NET consulta o ano pedido); sem uso real, na linha da D-06. | `m6.cruzado`, testes de domínio |
+| RN-140–145 (acréscimo, T-072) | O saldo futuro usa `today`, `from` e `to` como **texto**: o fim é `max(último dia do mês de to, último dia do mês de hoje, today)` em comparação de strings, e um evento marcado para um `today` inexistente ("2026-02-31") cai num dia que o laço nunca visita. O .NET porta o cálculo com as mesmas strings. Diferença conhecida: com `to` em 9999-12-31, o laço do Node passa para "+010000-01-01" (menor que "9999…" como texto) e não termina; o .NET responde 500. | `m7.cruzado`, testes de domínio |
+| R-08 (achado, T-072) | O serializador do Fastify **valida a resposta** contra o schema: um id com menos de 8 caracteres numa resposta (só possível com dado inserido à mão; os ids da API são UUID) vira **500** `ResponseSerializationError`. O .NET não valida respostas; com dados reais, não há diferença. | medição da T-072 |
+| RN-030–062 (acréscimos, T-081–T-083) | Reproduzidos no .NET: (1) o mapper do Node valida o e-mail ao LER do banco — usuário com e-mail fora do padrão responde **422** em login, refresh e admin; (2) a busca de usuários é `ILIKE '%…%'` sem escape no nome **ou** no e-mail; (3) pedir `status: PENDING` na edição **ativa** a conta (RN-057); (4) cookie de refresh `Path=/api/auth; Expires; HttpOnly; Secure; SameSite=None` e, ao limpar, `Max-Age=0 … SameSite=Lax`; (5) `ACCESS_TOKEN_TTL` no formato da biblioteca `ms` (sem unidade = milissegundos). Diferenças conhecidas: `GET /api/admin/users/` (com barra final) existe no Node e, no .NET, cai no repasse; um `ACCESS_TOKEN_TTL` inválido derruba o Node no 1º login e o .NET na subida. | `m8.cruzado`, testes de domínio e integração |
+| R-12 (acréscimo, T-012) | Erros do parser do Fastify nas rotas: JSON malformado, só espaços, `__proto__` ou `constructor.prototype` → 400 `FST_ERR_CTP_INVALID_JSON_BODY`; JSON vazio → 400 `FST_ERR_CTP_EMPTY_JSON_BODY`; sem `Content-Type` com corpo, ou tipo diferente de `application/json` e `text/plain` → 415 `FST_ERR_CTP_INVALID_MEDIA_TYPE` "Unsupported Media Type"; > 1 MB → 413 `FST_ERR_CTP_BODY_TOO_LARGE`. Em todos, `error: "FastifyError"`. `text/plain` chega como texto ("expected object, received string"); sem corpo, como `null`. Chave repetida no JSON: vale a última. Rotas diferenciam maiúsculas e barra final (404). | sonda da T-012 |
+| Todos os ⚠️ da seção 5 | Reproduzidos e fixados como comportamento atual. | ver `tests/paridade/README.md` |

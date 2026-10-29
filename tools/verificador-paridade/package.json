@@ -1,0 +1,20 @@
+{
+  "name": "@grana/verificador-paridade",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compara a API Node e a API .NET sobre os dados da homologação (plano.md §7.1): mesmos GETs, mesmo token, 0 diferenças.",
+  "scripts": {
+    "verificar": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

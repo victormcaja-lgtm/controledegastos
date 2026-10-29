@@ -54,7 +54,9 @@ export async function buildApp(): Promise<FastifyInstance> {
               },
         },
     genReqId: (request) => (request.headers['x-request-id'] as string) ?? randomUUID(),
-    trustProxy: true, // Railway e Vercel ficam atrás de proxy: sem isso, request.ip é o do proxy.
+    // Railway fica à frente da API: confia só nos saltos configurados (RN-162, D-02).
+    // `true` confiaria no X-Forwarded-For inteiro, e o cliente escolheria o próprio IP.
+    trustProxy: (_address, hop) => hop < env.TRUST_PROXY_HOPS,
     bodyLimit: 1_048_576, // 1 MB — nenhum endpoint desta API precisa de mais.
   });
 
