@@ -133,6 +133,34 @@ automaticamente**. Cada erro carrega um `requestId` que também está no log.
 A tabela `audit_logs` registra: login com sucesso, login com falha (e o motivo), criação,
 alteração e exclusão de usuário, e redefinição de senha — com ator, IP e metadados.
 
+## 11. API .NET (migração em andamento)
+
+A API .NET (`apps/api-dotnet`) reproduz tudo o que está acima. Nesta tabela, "igual" quer dizer
+coberto por teste:
+
+| Item                  | Na API .NET                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| Senhas                | Argon2id com os mesmos parâmetros (Isopoh); verifica hashes do Node e o Node verifica os dele   |
+| Anti-enumeração       | o mesmo "hash de mentira" para e-mail inexistente, mesma mensagem genérica                      |
+| Access token          | JWT HS256 com o **mesmo** `JWT_ACCESS_SECRET`; um token emitido por um lado vale no outro       |
+| Refresh token         | 512 bits opacos, só o SHA-256 no banco, rotação e detecção de reuso entre os dois backends      |
+| Cookie                | mesmos atributos (`HttpOnly`, `Secure`, `SameSite=None` em produção, `Path=/api/auth`)          |
+| Bloqueio e rate limit | 5 falhas → 15 min; limites global e por rota iguais (também em memória, por instância)          |
+| Borda                 | cabeçalhos do helmet, allowlist de CORS, corpo de até 1 MB, `TRUST_PROXY_HOPS`                  |
+| Auditoria             | mesma tabela e mesmos eventos; falha ao gravar não derruba a requisição, como no Node           |
+| Configuração          | recusa subir sem `DATABASE_URL`, e com módulo nativo sem `JWT_ACCESS_SECRET` de ≥ 32 caracteres |
+| Contêiner             | imagem `aspnet:10.0` rodando com usuário sem privilégios                                        |
+
+**Diferenças conhecidas:**
+
+- A resposta **não** é validada contra o schema na saída (no Node, um campo fora do schema vira
+  500). Com dados gravados pela própria API isso não acontece (analise.md, R-08).
+- Não há equivalente ao `@fastify/under-pressure`: o ASP.NET não tem um event loop único que
+  trave, então não devolve 503 por atraso.
+- Logs: o .NET não registra corpos nem cabeçalhos de requisição (nada a redigir); erros não
+  tratados saem com o `requestId`, como no Node.
+- A recusa de segredos "de exemplo" e iguais entre si continua só no Node.
+
 ---
 
 ## O que fazer conforme o sistema cresce

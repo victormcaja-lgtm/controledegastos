@@ -278,6 +278,90 @@ git push
 A Railway aplica em produção no deploy. **Nunca** rode `prisma db push` contra produção: ele altera
 o banco sem registrar migration e o histórico sai do lugar.
 
+> **Durante a migração para .NET o schema está congelado** (R-10): o Prisma continua sendo o único
+> dono das migrations, e o EF Core só mapeia o que existe. Mudança de schema nesse período precisa
+> ser feita nos dois lados no mesmo PR (migration Prisma + mapeamento EF). O `SchemaMappingTests`
+> aplica as migrations do Prisma e lê e grava cada tabela pelo EF: pega coluna obrigatória nova ou
+> renomeada, mas **não** uma coluna opcional esquecida no mapeamento.
+
+---
+
+## Etapa 8 — API .NET (fachada Strangler Fig)
+
+A API .NET (`apps/api-dotnet`) fica **na frente** da API Node: atende os módulos já migrados e
+repassa o resto. A troca é feita por módulo, por variável de ambiente, sem deploy de código
+(`docs/refatoracao/plano.md` §6).
+
+### 8.1 Serviço na Railway
+
+No mesmo projeto: **New** → **GitHub Repo** → `grana`, com:
+
+| Campo                | Valor                                     |
+| -------------------- | ----------------------------------------- |
+| **Service Name**     | `api-dotnet`                              |
+| **Root Directory**   | `apps/api-dotnet`                         |
+| **Builder**          | Dockerfile (`apps/api-dotnet/Dockerfile`) |
+| **Watch Paths**      | `apps/api-dotnet/src/**`                  |
+| **Healthcheck Path** | `/health`                                 |
+
+O serviço `api` (Node) continua existindo e passa a ser só o destino do repasse; ele segue rodando
+`prisma migrate deploy` a cada deploy.
+
+### 8.2 Variáveis
+
+```env
+PORT=${{PORT}}
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+NODE_UPSTREAM_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}
+
+# As mesmas do serviço Node — precisam ser IGUAIS para o token de um valer no outro:
+JWT_ACCESS_SECRET=${{api.JWT_ACCESS_SECRET}}
+ACCESS_TOKEN_TTL=${{api.ACCESS_TOKEN_TTL}}
+REFRESH_TOKEN_TTL_DAYS=${{api.REFRESH_TOKEN_TTL_DAYS}}
+CORS_ORIGINS=${{api.CORS_ORIGINS}}
+COOKIE_DOMAIN=${{api.COOKIE_DOMAIN}}
+RATE_LIMIT_MAX=${{api.RATE_LIMIT_MAX}}
+LOGIN_RATE_LIMIT_MAX=${{api.LOGIN_RATE_LIMIT_MAX}}
+TRUST_PROXY_HOPS=${{api.TRUST_PROXY_HOPS}}
+
+# Um por módulo: "dotnet" atende no .NET; ausente ou "node" repassa.
+Strangler__Modules__Settings=node
+Strangler__Modules__Incomes=node
+Strangler__Modules__Categories=node
+Strangler__Modules__Transactions=node
+Strangler__Modules__Debts=node
+Strangler__Modules__Goals=node
+Strangler__Modules__Bills=node
+Strangler__Modules__Cards=node
+Strangler__Modules__Dashboard=node
+Strangler__Modules__Cashflow=node
+Strangler__Modules__Identity=node
+```
+
+`NODE_ENV=production` e `HOST=0.0.0.0` já vêm da imagem. Sem `JWT_ACCESS_SECRET`, a fachada sobe
+mas só repassa (as rotas nativas precisam dele para validar o token).
+
+### 8.3 Virada do domínio público
+
+Só depois da homologação (T-008) e com sua aprovação (D-04): o domínio público da Railway passa do
+serviço `api` para o `api-dotnet`, com todos os módulos ainda em `node` — o comportamento é
+idêntico, porque tudo é repassado. Os módulos vão para `dotnet` um a um, na ordem do plano (§6.4).
+
+### 8.4 Rollback
+
+| Situação               | O que fazer                                                     | Tempo   |
+| ---------------------- | --------------------------------------------------------------- | ------- |
+| Problema num módulo    | `Strangler__Modules__<Módulo>=node` e reiniciar o `api-dotnet`  | < 5 min |
+| Problema na fachada    | Domínio público de volta para o serviço `api`                   | < 5 min |
+| Dado gravado pelo .NET | Nada: o Node lê o que o .NET grava (`tests/paridade/*.cruzado`) | —       |
+
+### 8.5 Sem o Node (fim da migração)
+
+Sem `NODE_UPSTREAM_URL`, não há repasse: o .NET responde também o 404 de rota inexistente e o
+preflight de CORS. A suíte de paridade roda nesse modo no CI. O serviço `api` fica **parado, não
+apagado**, por 30 dias (T-095); voltar é religá-lo e recolocar a variável. Até lá, o schema
+continua sendo do Prisma (T-092).
+
 ---
 
 ## Solução de problemas
@@ -291,6 +375,8 @@ o banco sem registrar migration e o histórico sai do lugar.
 | Healthcheck falha no deploy                               | Migration demorou mais que o timeout                        | Aumente **Healthcheck Timeout** para 300 na primeira vez.                                                                |
 | `Invalid \`prisma.x\` invocation` após atualizar o Prisma | Versões de engine desalinhadas                              | Alinhe `prisma`, `@prisma/client`, `@prisma/adapter-pg` e `@prisma/query-compiler-wasm` (veja o README).                 |
 | 429 no login durante testes                               | Rate limit de 8 tentativas / 15 min por IP                  | Espere a janela ou aumente `LOGIN_RATE_LIMIT_MAX` temporariamente.                                                       |
+| 401 em tudo depois de um módulo ir para `dotnet`          | `JWT_ACCESS_SECRET` diferente entre `api` e `api-dotnet`    | Use a referência `${{api.JWT_ACCESS_SECRET}}` em vez de colar o valor.                                                   |
+| `api-dotnet` responde 502 nas rotas repassadas            | `NODE_UPSTREAM_URL` errada ou serviço `api` parado          | Confira o domínio privado e a porta do serviço `api`.                                                                    |
 
 ---
 

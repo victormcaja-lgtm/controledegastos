@@ -173,6 +173,48 @@ cinco rotações. Se o refresh falhar, a sessão cai e o roteador manda para o l
 
 ---
 
+## Backend .NET (migração em andamento)
+
+A API Node está sendo substituída por uma API .NET 10 em `apps/api-dotnet`, módulo a módulo, sem
+mudar contrato nem banco (`docs/refatoracao/`). O desenho é o mesmo das quatro camadas acima, agora
+com a regra de dependência garantida por teste (`Grana.ArchitectureTests`):
+
+```
+src/
+├── Grana.Domain/          entidades, VOs e cálculos puros (Finance, Identity) — sem dependências
+├── Grana.Application/     casos de uso e portas (IUserRepository, IClock, …)
+├── Grana.Infrastructure/  EF Core + Npgsql, Argon2id (Isopoh), JWT, auditoria
+└── Grana.Api/             borda HTTP, rotas nativas, fachada YARP, composition root (Program.cs)
+```
+
+### Strangler Fig
+
+O .NET fica na frente do Node. Cada módulo tem uma chave `Strangler__Modules__<Módulo>`: em
+`dotnet`, as rotas do módulo são mapeadas nativamente; em `node`, não existem no .NET e a
+requisição cai no repasse (YARP) para o Node. Os dois leem e gravam o **mesmo banco**, então
+voltar um módulo é só trocar a chave. Sem `NODE_UPSTREAM_URL`, não há repasse e o .NET também
+responde o 404 e o preflight de CORS.
+
+### Compatibilidade byte a byte
+
+O objetivo é que o front não perceba a troca. Por isso a borda nativa (`Grana.Api/Http`) reproduz
+o Fastify: cabeçalhos do helmet, CORS, rate limit global e por rota, formato de erro com
+`requestId`, validação na ordem params → body → query com as mensagens do Zod (conferidas contra
+uma referência gerada do próprio `@grana/shared`, `zod-golden.json`), datas e números formatados à
+mão como o JavaScript formata. Comportamentos estranhos do Node foram **preservados de propósito**
+e estão registrados em `docs/refatoracao/analise.md`.
+
+### Como a paridade é verificada
+
+| Onde                                     | O que garante                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| `tests/paridade/specs/*.test.ts`         | a mesma suíte passa contra o Node, contra a fachada e contra o .NET sozinho |
+| `tests/paridade/specs/*.cruzado.test.ts` | o que um lado grava, o outro lê igual (sessões, hashes, dados)              |
+| `apps/api-dotnet/tests`                  | domínio, casos de uso, repositórios contra Postgres real (Testcontainers)   |
+| `tools/verificador-paridade`             | Node × .NET comparados por amostragem em homologação                        |
+
+---
+
 ## Testes
 
 | Nível                 | Onde                           | O que cobre                                                 |

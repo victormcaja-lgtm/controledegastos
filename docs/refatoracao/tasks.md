@@ -122,7 +122,7 @@ paridade (`tests/paridade/specs/NN`) · ✋ = precisa de aprovação ou ação s
 | T-091 | Remover o *fallback* do YARP; o `/health` passa a ser só do .NET | plano §6 | Suíte inteira verde sem Node rodando — **Feita (no código):** sem `NODE_UPSTREAM_URL` não há repasse; 404 `ROUTE_NOT_FOUND`, preflight do @fastify/cors e HEAD nas rotas GET passam a ser do .NET; suíte 155/155 sem Node (passo novo no CI). O pacote YARP só sai junto com o `apps/api` (T-096), para manter o rollback de T-095 |
 | T-092 | Passar o dono do schema para o .NET: migration *baseline* do EF Core igual ao schema atual; desligar o Prisma Migrate | R-10 | `dotnet ef migrations` sem diferença contra o banco de produção |
 | T-093 | Suíte de paridade passa a rodar só contra o .NET no CI; job do Node removido | — | CI verde |
-| T-094 | Atualizar `README`, `docs/DEPLOY.md`, `docs/ARQUITETURA.md`, `docs/SEGURANCA.md` | — | Revisão aprovada |
+| T-094 | Atualizar `README`, `docs/DEPLOY.md`, `docs/ARQUITETURA.md`, `docs/SEGURANCA.md` | — | Revisão aprovada — **Escrita, aguardando sua revisão:** seções da API .NET em ARQUITETURA, DEPLOY (Etapa 8: serviço, variáveis, virada, rollback) e SEGURANCA (§11, com as diferenças conhecidas); README reescrito; `apps/api-dotnet/Dockerfile` (imagem conferida localmente: health, 404 e login) |
 | T-095 | Serviço Node parado (não apagado) por 30 dias; rollback do desligamento ensaiado | plano §8 | Ensaio cronometrado < 15 min |
 | T-096 ✋ | Remover `apps/api` do repositório (depois dos 30 dias) | — | Sua aprovação |
 
