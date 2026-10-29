@@ -15,7 +15,7 @@ public static class HealthEndpoint
     private static readonly Stopwatch Uptime = Stopwatch.StartNew();
 
     public static void MapHealth(this IEndpointRouteBuilder routes) =>
-        routes.MapGet("/health", async (IDatabaseHealth database, CancellationToken cancellationToken) =>
+        routes.MapMethods("/health", [HttpMethods.Get, HttpMethods.Head], async (IDatabaseHealth database, CancellationToken cancellationToken) =>
             {
                 await database.PingAsync(cancellationToken).ConfigureAwait(false);
                 return Results.Json(new

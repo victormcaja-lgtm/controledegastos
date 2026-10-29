@@ -230,6 +230,37 @@ jobs:
           PARITY_NODE_URL: http://127.0.0.1:3334
           PARITY_DOTNET_URL: http://127.0.0.1:3336
 
+      # T-091: sem NODE_UPSTREAM_URL não há repasse — 404 e preflight também são do .NET.
+      - name: Subir a fachada .NET sem o Node atrás
+        working-directory: apps/api-dotnet
+        env:
+          NODE_ENV: production
+          PORT: '3337'
+          HOST: 127.0.0.1
+          DATABASE_URL: ${{ env.PARITY_DATABASE_URL }}
+          CORS_ORIGINS: http://localhost:5173
+          JWT_ACCESS_SECRET: paridade-segredo-de-acesso-com-mais-de-32-caracteres
+          Strangler__Modules__Settings: dotnet
+          Strangler__Modules__Incomes: dotnet
+          Strangler__Modules__Categories: dotnet
+          Strangler__Modules__Transactions: dotnet
+          Strangler__Modules__Debts: dotnet
+          Strangler__Modules__Goals: dotnet
+          Strangler__Modules__Bills: dotnet
+          Strangler__Modules__Cards: dotnet
+          Strangler__Modules__Dashboard: dotnet
+          Strangler__Modules__Cashflow: dotnet
+          Strangler__Modules__Identity: dotnet
+        run: |
+          dotnet run --project src/Grana.Api -c Release --no-build > ../../fachada-sem-node.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:3337/health && exit 0; sleep 2; done
+          cat ../../fachada-sem-node.log; exit 1
+
+      - name: Testes de paridade (só .NET, sem repasse)
+        run: npm run test:paridade -w @grana/paridade
+        env:
+          PARITY_BASE_URL: http://127.0.0.1:3337
+
       - name: Logs
         if: failure()
-        run: cat api.log fachada.log fachada-m1.log || true
+        run: cat api.log fachada.log fachada-m1.log fachada-sem-node.log || true

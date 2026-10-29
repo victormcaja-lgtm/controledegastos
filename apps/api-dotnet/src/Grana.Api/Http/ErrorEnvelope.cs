@@ -66,6 +66,26 @@ public static class ErrorEnvelope
         return context.Response.Body.WriteAsync(stream.ToArray(), context.RequestAborted).AsTask();
     }
 
+    /// <summary>Formato padrão do Fastify, sem <c>code</c> nem <c>requestId</c> (erro fora do tratador de app.ts).</summary>
+    public static Task WriteBareAsync(HttpContext context, int statusCode, string error, string message)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Encoder = Options.Encoder }))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("statusCode", statusCode);
+            writer.WriteString("error", error);
+            writer.WriteString("message", message);
+            writer.WriteEndObject();
+        }
+
+        return context.Response.Body.WriteAsync(stream.ToArray(), context.RequestAborted).AsTask();
+    }
+
     /// <summary>Erro de domínio → status pelo código; <c>error</c> = nome da classe.</summary>
     public static Task WriteDomainErrorAsync(HttpContext context, DomainError error)
     {

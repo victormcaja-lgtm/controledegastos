@@ -56,7 +56,9 @@ public static class NativeRoute
         ArgumentNullException.ThrowIfNull(schemas);
         ArgumentNullException.ThrowIfNull(handler);
 
-        return routes.MapMethods(pattern, [method], async (HttpContext context, AccessToken tokens) =>
+        // GET também atende HEAD, como o exposeHeadRoutes do Fastify.
+        string[] methods = method == HttpMethods.Get ? [HttpMethods.Get, HttpMethods.Head] : [method];
+        return routes.MapMethods(pattern, methods, async (HttpContext context, AccessToken tokens) =>
             {
                 var cancellationToken = context.RequestAborted;
                 var body = await RequestBody.ReadAsync(context.Request, cancellationToken).ConfigureAwait(false);

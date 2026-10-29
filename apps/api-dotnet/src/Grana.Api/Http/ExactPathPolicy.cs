@@ -7,7 +7,7 @@ namespace Grana.Api.Http;
 /// O roteador do ASP.NET ignora maiúsculas e a barra final; o do Fastify (find-my-way)
 /// não: <c>/API/settings</c> e <c>/api/settings/</c> dão 404 no Node. Esta política
 /// descarta a rota nativa nesses casos, e a requisição cai no repasse ao Node, que
-/// responde o 404 dele (RN-012).
+/// responde o 404 dele (RN-012) — ou, sem Node, o fallback nativo (T-091).
 /// </summary>
 public sealed class ExactPathPolicy : MatcherPolicy, IEndpointSelectorPolicy
 {
@@ -26,7 +26,7 @@ public sealed class ExactPathPolicy : MatcherPolicy, IEndpointSelectorPolicy
         {
             if (!candidates.IsValidCandidate(index)) continue;
             if (candidates[index].Endpoint is not RouteEndpoint { } endpoint) continue;
-            if (endpoint.Metadata.GetMetadata<NativeEndpointMetadata>() is null) continue;
+            if (endpoint.Metadata.GetMetadata<NativeEndpointMetadata>() is null || endpoint.Metadata.GetMetadata<NativeFallbackMetadata>() is not null) continue;
             if (!Matches(endpoint.RoutePattern, path)) candidates.SetValidity(index, false);
         }
 

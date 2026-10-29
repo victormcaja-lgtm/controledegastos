@@ -42,6 +42,13 @@ public sealed partial class NativeEdgeMiddleware(
             ApplyRateLimit(context);
             await next(context).ConfigureAwait(false);
         }
+        catch (CorsRejectedException error) when (IsFallbackPreflight(context))
+        {
+            // O preflight do @fastify/cors recusa a origem fora do tratador de erros de app.ts:
+            // mensagem exposta, sem code, requestId nem allow-credentials (RN-161).
+            context.Response.Headers.Remove("Access-Control-Allow-Credentials");
+            await ErrorEnvelope.WriteBareAsync(context, 500, "Internal Server Error", error.Message).ConfigureAwait(false);
+        }
         catch (DomainError error)
         {
             await ErrorEnvelope.WriteDomainErrorAsync(context, error).ConfigureAwait(false);
@@ -61,6 +68,9 @@ public sealed partial class NativeEdgeMiddleware(
             await ErrorEnvelope.WriteUnexpectedAsync(context, exception, settings.IsProduction).ConfigureAwait(false);
         }
     }
+
+    private static bool IsFallbackPreflight(HttpContext context) =>
+        HttpMethods.IsOptions(context.Request.Method) && context.GetEndpoint()?.Metadata.GetMetadata<NativeFallbackMetadata>() is not null;
 
     private void ApplySecurityHeaders(IHeaderDictionary headers)
     {

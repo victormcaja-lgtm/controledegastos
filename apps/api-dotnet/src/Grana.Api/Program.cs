@@ -66,6 +66,7 @@ if (settings.IsNative("Dashboard")) app.MapDashboard();
 if (settings.IsNative("Cashflow")) app.MapCashflow();
 if (settings.IsNative("Identity")) app.MapIdentity(settings);
 if (settings.NodeUpstreamUrl is { Length: > 0 }) app.MapReverseProxy();
+else app.MapNativeFallback(); // Sem Node atrás (T-091): 404 e preflight do próprio .NET.
 
 await app.RunAsync().ConfigureAwait(false);
 
